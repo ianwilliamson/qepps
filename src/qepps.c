@@ -68,7 +68,6 @@ PetscErrorCode loadSweepParameters( PetscInt *nParams, PetscComplex vec_params[]
   while( fscanf(fp,"%f",&value) != EOF )
   {
     vec_params[p]=value;
-    PetscPrintf(PETSC_COMM_WORLD,"param=%f\n",vec_params[p]);
     p++;
   }
   
@@ -116,6 +115,7 @@ int main(int argc,char **argv)
   
   QEP     qep;          
   QEPType type;
+  ST      st;
   
   PetscMPIInt    rank;
   PetscViewer    viewer;
@@ -167,10 +167,7 @@ int main(int argc,char **argv)
   PetscOptionsGetScalar(NULL,"-lambda_tgt",&lambda_tgt,&flg);
   if (!flg)
     lambda_tgt=1;
-  
-  PetscPrintf(PETSC_COMM_WORLD,"INFO: Setting up solver...\n");
-  QEPCreate(PETSC_COMM_WORLD,&qep);
-  QEPSetFromOptions(qep);
+  PetscPrintf(PETSC_COMM_WORLD,"INFO: lambda_tgt = %f + j%f\n",PetscRealPart(lambda_tgt),PetscImaginaryPart(lambda_tgt));
   
   /* ------------------------------------------------ */
   
@@ -183,6 +180,10 @@ int main(int argc,char **argv)
   if( Kb[0].Active )
     MatDuplicate( Kb[0].Matrix, MAT_COPY_VALUES, &K );
     
+  QEPCreate(PETSC_COMM_WORLD,&qep);
+  QEPSetProblemType(qep,QEP_GENERAL);
+  QEPSetFromOptions(qep); 
+  
   for (p=0; p<=nParams-1; p++)
   {
     for (i=1; i<=2; i++)
@@ -215,32 +216,35 @@ int main(int argc,char **argv)
         }
       }
     }
-    
+
     QEPSetOperators(qep,E,D,K);
-    QEPSetTarget(qep,lambda_tgt);
     
     /* ------------------------------------------------ */
     
     PetscPrintf(PETSC_COMM_WORLD,"INFO: Running solver...\n");
+    
+    QEPSetTarget(qep,lambda_tgt);
+    
+    QEPGetST(qep,&st);
+    STSetShift(st,lambda_tgt);
+    
     QEPSolve(qep);
     QEPGetConverged(qep,&nConverged);
     QEPGetIterationNumber(qep,&nIterations);
-    PetscPrintf(PETSC_COMM_WORLD,"INFO: Number of iterations: %d\n",nIterations);
     
-    for (ev=0; ev<nConverged; ev++)
+    for (ev=0; ev<=nConverged; ev++)
     {
       QEPGetEigenpair( qep, ev, &lambda_solved, NULL, NULL, NULL );
       QEPComputeRelativeError( qep, ev, &error );
       PetscPrintf(PETSC_COMM_WORLD,"      lambda=%f\n",lambda_solved);
-      //QEPGetEigenvector( qep, ev, Ur, Ui );
+      lambda_tgt=lambda_solved;
     }
-    lambda_tgt=lambda_solved;
   }
   
   /* ------------------------------------------------ */
   
-  PetscFree(vec_params);
-  PetscFree(vec_lambdas);
+  //PetscFree(vec_params);
+  //PetscFree(vec_lambdas);
   
   QEPDestroy(&qep);
   MatDestroy(&E);
@@ -249,9 +253,12 @@ int main(int argc,char **argv)
   
   for (i=0; i<=2; i++)
   {
-    MatDestroy(&Eb[i].Matrix);
-    MatDestroy(&Db[i].Matrix);
-    MatDestroy(&Kb[i].Matrix);
+    if( Eb[i].Active )
+      MatDestroy(&Eb[i].Matrix);
+    if( Db[i].Active )
+      MatDestroy(&Db[i].Matrix);
+    if( Kb[i].Active )
+      MatDestroy(&Kb[i].Matrix);
   }
   
   SlepcFinalize();
