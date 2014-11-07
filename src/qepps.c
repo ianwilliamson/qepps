@@ -23,37 +23,61 @@
 
 #include "slepcqep.h"
 #include "const_qepps.h"
+#include <math.h>
 
-PetscErrorCode loadSweepParameters( PetscInt *nParams, PetscReal *vec_params )
+typedef struct
 {
+  PetscBool Active;
+  Mat Matrix;
+} BaseMat;
+
+PetscErrorCode loadSweepParameters( PetscInt *nParams, PetscComplex vec_params[] )
+{
+  int N,p;
+  float value;
+  
+  /* ------------------------------------------------ */
+  
   PetscBool flg;
   PetscInt i;
-  PetscErrorCode ierr;
   
   FILE *fp;
   char filename[PETSC_MAX_PATH_LEN];
-
-  ierr = PetscOptionsGetString(NULL,"-params",filename,PETSC_MAX_PATH_LEN,&flg);CHKERRQ(ierr);
+  
+  /* ------------------------------------------------ */
+  
+  PetscOptionsGetString(NULL,"-params",filename,PETSC_MAX_PATH_LEN,&flg);
   if (!flg) SETERRQ(PETSC_COMM_WORLD,1,"Must supply parameter sweep file in input arguments");
-
   PetscFOpen(PETSC_COMM_SELF,filename,"r",&fp);
   if (!fp) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"Unable to open file specifying sweep parameters");
-
-  while ( EOF != fscanf(fp,"%*E") ) //scan but discard with *
-    ++nParams;
-  PetscMalloc(2*sizeof(PetscReal),&vec_params);
-  PetscPrintf(PETSC_COMM_WORLD,"Found %d parameter values...\n",nParams);
-
+  
+  /* ------------------------------------------------ */
+  
+  N=0;
+  while ( fscanf(fp,"%*f") != EOF )
+  {
+    N++;
+  }
+  
+  PetscMalloc(N*sizeof(PetscComplex),&vec_params);
+  PetscPrintf(PETSC_COMM_WORLD,"INFO: Found %d parameter values...\n",N);
+  *nParams=N;
+  
   rewind(fp);
-  i=0;
-  while( EOF != fscanf(fp,"%E",&vec_params[i]) )
-    ++i;
+  p=0;
+  while( fscanf(fp,"%f",&value) != EOF )
+  {
+    vec_params[p]=value;
+    PetscPrintf(PETSC_COMM_WORLD,"param=%f\n",vec_params[p]);
+    p++;
+  }
+  
   PetscFClose(PETSC_COMM_SELF,fp);
   
   return 0;
 }
 
-PetscErrorCode loadMatricies( char *optStringArray[], Mat *matrixArray[], PetscInt numMatricies )
+PetscErrorCode loadMatricies( const char *optStringArray[], BaseMat baseMatrixArray[], const PetscInt baseMatrixArraySize )
 {
   PetscInt i;
   PetscViewer viewer;
@@ -63,23 +87,24 @@ PetscErrorCode loadMatricies( char *optStringArray[], Mat *matrixArray[], PetscI
   FILE *fp;
   char filename[PETSC_MAX_PATH_LEN];
   
-  for(i=0; i<=numMatricies-1; i++ )
+  for(i=0; i<=baseMatrixArraySize-1; i++ )
   {
-    ierr = PetscOptionsGetString(NULL,optStringArray[i],filename,PETSC_MAX_PATH_LEN,&flg);CHKERRQ(ierr);
+    PetscOptionsGetString(NULL,optStringArray[i],filename,PETSC_MAX_PATH_LEN,&flg);
     if (flg) 
     {
-      ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,filename,FILE_MODE_READ,&viewer);CHKERRQ(ierr);
-      ierr = MatCreate(PETSC_COMM_WORLD,&matrixArray[i]);CHKERRQ(ierr);
-      ierr = MatSetFromOptions(matrixArray[i]);CHKERRQ(ierr);
-      ierr = MatLoad(matrixArray[i],viewer);CHKERRQ(ierr);
-      ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+      PetscViewerBinaryOpen(PETSC_COMM_WORLD,filename,FILE_MODE_READ,&viewer);
+      MatCreate(PETSC_COMM_WORLD,&baseMatrixArray[i].Matrix);
+      MatSetFromOptions(baseMatrixArray[i].Matrix);
+      MatLoad(baseMatrixArray[i].Matrix,viewer);
+      PetscViewerDestroy(&viewer);
+      baseMatrixArray[i].Active=1;
     } 
     else
     {
-      matrixArray[i]=NULL;
-      //SETERRQ(PETSC_COMM_WORLD,1,"Must indicate a file name for matrix M with the -M option");
+      baseMatrixArray[i].Active=0;
     }
   }
+  
   return 0;
 }
 
@@ -95,23 +120,22 @@ int main(int argc,char **argv)
   PetscMPIInt    rank;
   PetscViewer    viewer;
   PetscBool      flg;
-  PetscErrorCode ierr;
   
   FILE *fp;
   char filename[PETSC_MAX_PATH_LEN];
   
   /* ------------------------------------------------ */
   
-  PetscComplex lambda_solved, lambda_tgt, *vec_lambdas;
-  PetscScalar  error, tol, *vec_params, lambda_tgt_real=1, lambda_tgt_imag=0;
-  PetscInt     i, j, nev, nconv, maxit, its, nParams;
+  PetscComplex lambda_solved, lambda_tgt, *vec_lambdas, *vec_params;
+  PetscReal    error, tol;
+  PetscInt     p, i, ev, nConverged, maxIterations, nIterations, nParams;
   
   /* ------------------------------------------------ */
   
   Vec Ur, Ui; // soln vectors
   
-  Mat *E_base[3], *D_base[3], *K_base[3];   // base matricies, loaded from disk
-  Mat  E,          D,          K;           // complete matricies, storing scaled values 
+  BaseMat Eb[3], Db[3], Kb[3]; // base matricies, loaded from disk
+  Mat     E,     D,     K;     // complete matricies, storing scaled values 
   
   const char *optsE[3]= {"-E0","-E1","-E2"}; // Input option strings so we can loop
   const char *optsD[3]= {"-D0","-D1","-D2"};
@@ -122,66 +146,95 @@ int main(int argc,char **argv)
   /* INITIALIZE */
   SlepcInitialize(&argc,&argv,(char*)0,help);
   
-  ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
+  MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
   
   /* LOAD */
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Loading problem data...\n");CHKERRQ(ierr);
+  PetscPrintf(PETSC_COMM_WORLD,"INFO: Loading problem data...\n");
   
   /* FREQUENCIES */
-  ierr = loadSweepParameters(&nParams,&vec_params);CHKERRQ(ierr);
+  loadSweepParameters(&nParams,vec_params);
   
   /* MATRICIES */
-  ierr = loadMatricies( optsE, E_base, 3 );CHKERRQ(ierr);
-  ierr = loadMatricies( optsD, D_base, 3 );CHKERRQ(ierr);
-  ierr = loadMatricies( optsK, K_base, 3 );CHKERRQ(ierr);
+  PetscPrintf(PETSC_COMM_WORLD,"INFO: Loading E...\n");
+  loadMatricies( optsE, Eb, 3 );
+  PetscPrintf(PETSC_COMM_WORLD,"INFO: Loading D...\n");
+  loadMatricies( optsD, Db, 3 );
+  PetscPrintf(PETSC_COMM_WORLD,"INFO: Loading K...\n");
+  loadMatricies( optsK, Kb, 3 );
   
-  /* SETUP */
-  // allocate storage
-  PetscMalloc(nParams*sizeof(PetscReal),&vec_lambdas);
-  // get starting eigenvalue target
-  PetscOptionsGetReal(NULL,"-lambda_tgt_real",&lambda_tgt_real,NULL);
-  PetscOptionsGetReal(NULL,"-lambda_tgt_imag",&lambda_tgt_imag,NULL);
-  lambda_tgt = lambda_tgt_real+PETSC_i*lambda_tgt_imag;
+  /* INIT */
+  PetscMalloc(nParams*sizeof(PetscComplex),&vec_lambdas);
+  PetscOptionsGetScalar(NULL,"-lambda_tgt",&lambda_tgt,&flg);
+  if (!flg)
+    lambda_tgt=1;
   
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Setting up solver...\n");CHKERRQ(ierr);
-  ierr = QEPCreate(PETSC_COMM_WORLD,&qep);CHKERRQ(ierr);
-  ierr = QEPSetFromOptions(qep);CHKERRQ(ierr);
+  PetscPrintf(PETSC_COMM_WORLD,"INFO: Setting up solver...\n");
+  QEPCreate(PETSC_COMM_WORLD,&qep);
+  QEPSetFromOptions(qep);
   
   /* ------------------------------------------------ */
   
-  for (i=0; i<=nParams-1; i++)
-  {
-    ierr = MatDuplicate( E_base[0], MAT_COPY_VALUES, &E );
-    ierr = MatAXPY( E, vec_params[i], E_base[1], DIFFERENT_NONZERO_PATTERN );CHKERRQ(ierr);
-    ierr = MatAXPY( E, vec_params[i]*vec_params[i], E_base[2], DIFFERENT_NONZERO_PATTERN );CHKERRQ(ierr);
-    
-    ierr = MatDuplicate( D_base[0], MAT_COPY_VALUES, &D );
-    ierr = MatAXPY( D, vec_params[i], D_base[1], DIFFERENT_NONZERO_PATTERN );CHKERRQ(ierr);
-    ierr = MatAXPY( D, vec_params[i]*vec_params[i], D_base[2], DIFFERENT_NONZERO_PATTERN );CHKERRQ(ierr);
-    
-    ierr = MatDuplicate( K_base[0], MAT_COPY_VALUES, &K );
-    ierr = MatAXPY( K, vec_params[i], K_base[1], DIFFERENT_NONZERO_PATTERN );CHKERRQ(ierr);
-    ierr = MatAXPY( K, vec_params[i]*vec_params[i], K_base[2], DIFFERENT_NONZERO_PATTERN );CHKERRQ(ierr);
+  if( Eb[0].Active )
+    MatDuplicate( Eb[0].Matrix, MAT_COPY_VALUES, &E );
+  
+  if( Db[0].Active )
+    MatDuplicate( Db[0].Matrix, MAT_COPY_VALUES, &D );
 
-    ierr = QEPSetOperators(qep,E,D,K);CHKERRQ(ierr);
-    ierr = QEPSetTarget(qep,lambda_tgt);CHKERRQ(ierr);
+  if( Kb[0].Active )
+    MatDuplicate( Kb[0].Matrix, MAT_COPY_VALUES, &K );
+    
+  for (p=0; p<=nParams-1; p++)
+  {
+    for (i=1; i<=2; i++)
+    {
+      if( Eb[i].Active )
+      {
+        if( Eb[i-1].Active ) {
+          MatAXPY( E, pow(vec_params[p],i), Eb[i].Matrix, DIFFERENT_NONZERO_PATTERN );
+        } else {
+          MatDuplicate( Eb[i].Matrix, MAT_COPY_VALUES, &E );
+          MatScale( Eb[i].Matrix , pow(vec_params[p],i) );
+        }
+      }
+      if( Db[i].Active )
+      {
+        if( Db[i-1].Active ) {
+          MatAXPY( D, pow(vec_params[p],i), Db[i].Matrix, DIFFERENT_NONZERO_PATTERN );
+        } else {
+          MatDuplicate( Db[i].Matrix, MAT_COPY_VALUES, &D );
+          MatScale( Db[i].Matrix , pow(vec_params[p],i) );
+        }
+      }
+      if( Kb[i].Active )
+      {
+        if( Kb[i-1].Active ) {
+          MatAXPY( K, pow(vec_params[p],i), Kb[i].Matrix, DIFFERENT_NONZERO_PATTERN );
+        } else {
+          MatDuplicate( Kb[i].Matrix, MAT_COPY_VALUES, &K );
+          MatScale( Kb[i].Matrix , pow(vec_params[p],i) );
+        }
+      }
+    }
+    
+    QEPSetOperators(qep,E,D,K);
+    QEPSetTarget(qep,lambda_tgt);
     
     /* ------------------------------------------------ */
     
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Running solver...\n");CHKERRQ(ierr);
+    PetscPrintf(PETSC_COMM_WORLD,"INFO: Running solver...\n");
+    QEPSolve(qep);
+    QEPGetConverged(qep,&nConverged);
+    QEPGetIterationNumber(qep,&nIterations);
+    PetscPrintf(PETSC_COMM_WORLD,"INFO: Number of iterations: %d\n",nIterations);
     
-    ierr = QEPSolve(qep);CHKERRQ(ierr);
-    ierr = QEPGetConverged(qep,&nconv);CHKERRQ(ierr);
-    ierr = QEPGetIterationNumber(qep,&its);CHKERRQ(ierr);
-    
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Num iterations: %D\n",its);CHKERRQ(ierr);
-    for (j=0; j<nconv; j++)
+    for (ev=0; ev<nConverged; ev++)
     {
-      ierr = QEPGetEigenpair( qep, j, &lambda_tgt, NULL, NULL, NULL );CHKERRQ(ierr);
-      ierr = QEPComputeRelativeError( qep, j, &error );CHKERRQ(ierr);
-      ierr = PetscPrintf(PETSC_COMM_WORLD,"lambda=:%D\n",its);CHKERRQ(ierr);
-      //ierr = QEPGetEigenvector( qep, j, Ur, Ui );CHKERRQ(ierr);
+      QEPGetEigenpair( qep, ev, &lambda_solved, NULL, NULL, NULL );
+      QEPComputeRelativeError( qep, ev, &error );
+      PetscPrintf(PETSC_COMM_WORLD,"      lambda=%f\n",lambda_solved);
+      //QEPGetEigenvector( qep, ev, Ur, Ui );
     }
+    lambda_tgt=lambda_solved;
   }
   
   /* ------------------------------------------------ */
@@ -189,24 +242,19 @@ int main(int argc,char **argv)
   PetscFree(vec_params);
   PetscFree(vec_lambdas);
   
-  ierr = QEPDestroy(&qep);CHKERRQ(ierr);
-  ierr = MatDestroy(&E);CHKERRQ(ierr);
-  ierr = MatDestroy(&D);CHKERRQ(ierr);
-  ierr = MatDestroy(&K);CHKERRQ(ierr);
+  QEPDestroy(&qep);
+  MatDestroy(&E);
+  MatDestroy(&D);
+  MatDestroy(&K);
   
-  ierr = MatDestroy(&E_base[0]);CHKERRQ(ierr);
-  ierr = MatDestroy(&E_base[1]);CHKERRQ(ierr);
-  ierr = MatDestroy(&E_base[2]);CHKERRQ(ierr);
+  for (i=0; i<=2; i++)
+  {
+    MatDestroy(&Eb[i].Matrix);
+    MatDestroy(&Db[i].Matrix);
+    MatDestroy(&Kb[i].Matrix);
+  }
   
-  ierr = MatDestroy(&D_base[0]);CHKERRQ(ierr);
-  ierr = MatDestroy(&D_base[1]);CHKERRQ(ierr);
-  ierr = MatDestroy(&D_base[2]);CHKERRQ(ierr);
-  
-  ierr = MatDestroy(&K_base[0]);CHKERRQ(ierr);
-  ierr = MatDestroy(&K_base[1]);CHKERRQ(ierr);
-  ierr = MatDestroy(&K_base[2]);CHKERRQ(ierr);
-  
-  ierr = SlepcFinalize();
+  SlepcFinalize();
   
   /* ------------------------------------------------ */
   
