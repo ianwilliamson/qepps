@@ -23,89 +23,8 @@
 
 #include "slepcqep.h"
 #include "const_qepps.h"
+#include "load.h"
 #include <math.h>
-
-typedef struct
-{
-  PetscBool Active;
-  Mat Matrix;
-} BaseMat;
-
-PetscErrorCode loadSweepParameters( PetscInt *nParams, PetscComplex vec_params[] )
-{
-  int N,p;
-  float value;
-  
-  /* ------------------------------------------------ */
-  
-  PetscBool flg;
-  PetscInt i;
-  
-  FILE *fp;
-  char filename[PETSC_MAX_PATH_LEN];
-  
-  /* ------------------------------------------------ */
-  
-  PetscOptionsGetString(NULL,"-params",filename,PETSC_MAX_PATH_LEN,&flg);
-  if (!flg) SETERRQ(PETSC_COMM_WORLD,1,"Must supply parameter sweep file in input arguments");
-  PetscFOpen(PETSC_COMM_SELF,filename,"r",&fp);
-  if (!fp) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"Unable to open file specifying sweep parameters");
-  
-  /* ------------------------------------------------ */
-  
-  N=0;
-  while ( fscanf(fp,"%*f") != EOF )
-  {
-    N++;
-  }
-  
-  PetscMalloc(N*sizeof(PetscComplex),&vec_params);
-  PetscPrintf(PETSC_COMM_WORLD,"INFO: Found %d parameter values...\n",N);
-  *nParams=N;
-  
-  rewind(fp);
-  p=0;
-  while( fscanf(fp,"%f",&value) != EOF )
-  {
-    vec_params[p]=value;
-    p++;
-  }
-  
-  PetscFClose(PETSC_COMM_SELF,fp);
-  
-  return 0;
-}
-
-PetscErrorCode loadMatricies( const char *optStringArray[], BaseMat baseMatrixArray[], const PetscInt baseMatrixArraySize )
-{
-  PetscInt i;
-  PetscViewer viewer;
-  PetscBool flg;
-  PetscErrorCode ierr;
-  
-  FILE *fp;
-  char filename[PETSC_MAX_PATH_LEN];
-  
-  for(i=0; i<=baseMatrixArraySize-1; i++ )
-  {
-    PetscOptionsGetString(NULL,optStringArray[i],filename,PETSC_MAX_PATH_LEN,&flg);
-    if (flg) 
-    {
-      PetscViewerBinaryOpen(PETSC_COMM_WORLD,filename,FILE_MODE_READ,&viewer);
-      MatCreate(PETSC_COMM_WORLD,&baseMatrixArray[i].Matrix);
-      MatSetFromOptions(baseMatrixArray[i].Matrix);
-      MatLoad(baseMatrixArray[i].Matrix,viewer);
-      PetscViewerDestroy(&viewer);
-      baseMatrixArray[i].Active=1;
-    } 
-    else
-    {
-      baseMatrixArray[i].Active=0;
-    }
-  }
-  
-  return 0;
-}
 
 #undef __FUNCT__
 #define __FUNCT__ "main"
@@ -181,7 +100,6 @@ int main(int argc,char **argv)
     MatDuplicate( Kb[0].Matrix, MAT_COPY_VALUES, &K );
     
   QEPCreate(PETSC_COMM_WORLD,&qep);
-  QEPSetProblemType(qep,QEP_GENERAL);
   QEPSetFromOptions(qep); 
   
   for (p=0; p<=nParams-1; p++)
@@ -225,18 +143,18 @@ int main(int argc,char **argv)
     
     QEPSetTarget(qep,lambda_tgt);
     
-    QEPGetST(qep,&st);
-    STSetShift(st,lambda_tgt);
+    //QEPGetST(qep,&st);
+    //STSetShift(st,lambda_tgt);
     
     QEPSolve(qep);
     QEPGetConverged(qep,&nConverged);
     QEPGetIterationNumber(qep,&nIterations);
     
-    for (ev=0; ev<=nConverged; ev++)
+    for (ev=0; ev<nConverged; ev++)
     {
       QEPGetEigenpair( qep, ev, &lambda_solved, NULL, NULL, NULL );
       QEPComputeRelativeError( qep, ev, &error );
-      PetscPrintf(PETSC_COMM_WORLD,"      lambda=%f\n",lambda_solved);
+      PetscPrintf(PETSC_COMM_WORLD,"      lambda = %f%+fj\n",PetscRealPart(lambda_solved),PetscImaginaryPart(lambda_solved));
       lambda_tgt=lambda_solved;
     }
   }
@@ -254,11 +172,11 @@ int main(int argc,char **argv)
   for (i=0; i<=2; i++)
   {
     if( Eb[i].Active )
-      MatDestroy(&Eb[i].Matrix);
+      MatDestroy(&(Eb[i].Matrix));
     if( Db[i].Active )
-      MatDestroy(&Db[i].Matrix);
+      MatDestroy(&(Db[i].Matrix));
     if( Kb[i].Active )
-      MatDestroy(&Kb[i].Matrix);
+      MatDestroy(&(Kb[i].Matrix));
   }
   
   SlepcFinalize();

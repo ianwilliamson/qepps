@@ -22,4 +22,11 @@ Parameters:\n\
     -qep_mpd <number>\n\
     -qep_type <type>\n\
     -st_shift <type>\n";
+    
+typedef struct
+{
+  PetscBool Active;
+  Mat Matrix;
+} BaseMat;
+
 #endif
