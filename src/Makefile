@@ -12,7 +12,7 @@ SRC_FILES = \
 OBJ_FILES = $(SRC_FILES:%.c=%.o)
 
 $(EXE): $(EXE).o $(OBJ_FILES)
-	-${CLINKER} $(EXE).o $(OBJ_FILES) -o $(EXE) ${SLEPC_LIB}
+	-${CLINKER} $(EXE).o $(OBJ_FILES) -o ../$(EXE) ${SLEPC_LIB}
 	${RM} $(EXE).o $(OBJ_FILES)
 
 %.o: %.c
