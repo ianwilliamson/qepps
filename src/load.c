@@ -1,4 +1,4 @@
-#include "slepcqep.h"
+#include "slepcpep.h"
 #include "const_qepps.h"
 
 PetscErrorCode loadSweepParameters( PetscInt *nParams, PetscComplex vec_params[] )
@@ -30,7 +30,7 @@ PetscErrorCode loadSweepParameters( PetscInt *nParams, PetscComplex vec_params[]
   }
   
   PetscMalloc(N*sizeof(PetscComplex),&vec_params);
-  PetscPrintf(PETSC_COMM_WORLD,"INFO: Found %d parameter values...\n",N);
+  PetscPrintf(PETSC_COMM_WORLD,"Found %d parameter values...\n",N);
   *nParams=N;
   
   rewind(fp);
@@ -48,7 +48,8 @@ PetscErrorCode loadSweepParameters( PetscInt *nParams, PetscComplex vec_params[]
 
 PetscErrorCode loadMatricies( const char *optStringArray[], BaseMat baseMatrixArray[], const PetscInt baseMatrixArraySize )
 {
-  PetscInt i;
+  MatInfo matinfo;
+  PetscInt i,m,n;
   PetscViewer viewer;
   PetscBool flg;
   PetscErrorCode ierr;
@@ -66,7 +67,11 @@ PetscErrorCode loadMatricies( const char *optStringArray[], BaseMat baseMatrixAr
       MatSetFromOptions(baseMatrixArray[i].Matrix);
       MatLoad(baseMatrixArray[i].Matrix,viewer);
       PetscViewerDestroy(&viewer);
+      
       baseMatrixArray[i].Active=1;
+      
+      MatGetSize(baseMatrixArray[i].Matrix,&m,&n);
+      PetscPrintf(PETSC_COMM_WORLD,"%s: %d x %d\n",optStringArray[i],m,n);
     } 
     else
     {

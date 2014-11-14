@@ -21,7 +21,7 @@
  *                                                                          * 
  ****************************************************************************/
 
-#include "slepcqep.h"
+#include "slepcpep.h"
 #include "const_qepps.h"
 #include "load.h"
 #include <math.h>
@@ -32,9 +32,8 @@ int main(int argc,char **argv)
 {
   /* ------------------------------------------------ */
   
-  QEP     qep;          
-  QEPType type;
-  ST      st;
+  PEP     pep;          
+  PEPType type;
   
   PetscMPIInt    rank;
   PetscViewer    viewer;
@@ -53,8 +52,8 @@ int main(int argc,char **argv)
   
   Vec Ur, Ui; // soln vectors
   
-  BaseMat Eb[3], Db[3], Kb[3]; // base matricies, loaded from disk
-  Mat     E,     D,     K;     // complete matricies, storing scaled values 
+  BaseMat Eb[3], Db[3], Kb[3];           // base matricies, loaded from disk
+  Mat     E,     D,     K,     A[3];     // complete matricies, storing scaled values 
   
   const char *optsE[3]= {"-E0","-E1","-E2"}; // Input option strings so we can loop
   const char *optsD[3]= {"-D0","-D1","-D2"};
@@ -67,18 +66,15 @@ int main(int argc,char **argv)
   
   MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
   
-  /* LOAD */
-  PetscPrintf(PETSC_COMM_WORLD,"INFO: Loading problem data...\n");
-  
   /* FREQUENCIES */
   loadSweepParameters(&nParams,vec_params);
   
   /* MATRICIES */
-  PetscPrintf(PETSC_COMM_WORLD,"INFO: Loading E...\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Loading E\n");
   loadMatricies( optsE, Eb, 3 );
-  PetscPrintf(PETSC_COMM_WORLD,"INFO: Loading D...\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Loading D\n");
   loadMatricies( optsD, Db, 3 );
-  PetscPrintf(PETSC_COMM_WORLD,"INFO: Loading K...\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Loading K\n");
   loadMatricies( optsK, Kb, 3 );
   
   /* INIT */
@@ -86,7 +82,7 @@ int main(int argc,char **argv)
   PetscOptionsGetScalar(NULL,"-lambda_tgt",&lambda_tgt,&flg);
   if (!flg)
     lambda_tgt=1;
-  PetscPrintf(PETSC_COMM_WORLD,"INFO: lambda_tgt = %f + j%f\n",PetscRealPart(lambda_tgt),PetscImaginaryPart(lambda_tgt));
+  PetscPrintf(PETSC_COMM_WORLD,"  lambda_tgt = %f + j%f\n",PetscRealPart(lambda_tgt),PetscImaginaryPart(lambda_tgt));
   
   /* ------------------------------------------------ */
   
@@ -99,8 +95,7 @@ int main(int argc,char **argv)
   if( Kb[0].Active )
     MatDuplicate( Kb[0].Matrix, MAT_COPY_VALUES, &K );
     
-  QEPCreate(PETSC_COMM_WORLD,&qep);
-  QEPSetFromOptions(qep); 
+  PEPCreate(PETSC_COMM_WORLD,&pep);
   
   for (p=0; p<=nParams-1; p++)
   {
@@ -134,27 +129,24 @@ int main(int argc,char **argv)
         }
       }
     }
-
-    QEPSetOperators(qep,E,D,K);
+    A[0]=K; A[1]=D; A[2]=E;
+    PEPSetOperators(pep,3,A);
+    PEPSetProblemType(pep,PEP_GENERAL);
+    PEPSetFromOptions(pep);
     
     /* ------------------------------------------------ */
     
-    PetscPrintf(PETSC_COMM_WORLD,"INFO: Running solver...\n");
+    PetscPrintf(PETSC_COMM_WORLD,"Running solver\n");
     
-    QEPSetTarget(qep,lambda_tgt);
+    PEPSetTarget(pep,lambda_tgt);
     
-    //QEPGetST(qep,&st);
-    //STSetShift(st,lambda_tgt);
-    
-    QEPSolve(qep);
-    QEPGetConverged(qep,&nConverged);
-    QEPGetIterationNumber(qep,&nIterations);
+    PEPSolve(pep);
+    PEPGetConverged(pep,&nConverged);
     
     for (ev=0; ev<nConverged; ev++)
     {
-      QEPGetEigenpair( qep, ev, &lambda_solved, NULL, NULL, NULL );
-      QEPComputeRelativeError( qep, ev, &error );
-      PetscPrintf(PETSC_COMM_WORLD,"      lambda = %f%+fj\n",PetscRealPart(lambda_solved),PetscImaginaryPart(lambda_solved));
+      PEPGetEigenpair( pep, ev, &lambda_solved, NULL, NULL, NULL );
+      PetscPrintf(PETSC_COMM_WORLD,"  lambda = %f%+fj\n",PetscRealPart(lambda_solved),PetscImaginaryPart(lambda_solved));
       lambda_tgt=lambda_solved;
     }
   }
@@ -164,7 +156,7 @@ int main(int argc,char **argv)
   //PetscFree(vec_params);
   //PetscFree(vec_lambdas);
   
-  QEPDestroy(&qep);
+  PEPDestroy(&pep);
   MatDestroy(&E);
   MatDestroy(&D);
   MatDestroy(&K);

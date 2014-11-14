@@ -1,11 +1,9 @@
 #!/bin/bash
 
 ibrun -n 1 -o 0 ./qepps \
-	-lambda_tgt 55+22i \
-	-lambda_tgt_i 22 \
-	-lambda_tgt_r 55 \
+	-lambda_tgt 0 \
 	-qep_nev 1 \
-	-qep_ncv 20 \
+	-qep_ncv 2 \
 	-qep_tol 1e-6 \
 	-st_type sinvert \
 	-qep_monitor \
