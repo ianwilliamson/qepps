@@ -1,7 +1,7 @@
 #include "slepcpep.h"
 #include "const_qepps.h"
 
-PetscErrorCode loadSweepParameters( PetscInt *nParams, PetscComplex vec_params[] )
+PetscErrorCode loadSweepParameters( PetscInt *nParams, PetscReal **vec_params )
 {
   int N,p;
   float value;
@@ -25,19 +25,16 @@ PetscErrorCode loadSweepParameters( PetscInt *nParams, PetscComplex vec_params[]
   
   N=0;
   while ( fscanf(fp,"%*f") != EOF )
-  {
     N++;
-  }
   
-  PetscMalloc(N*sizeof(PetscComplex),&vec_params);
-  PetscPrintf(PETSC_COMM_WORLD,"Found %d parameter values...\n",N);
+  PetscMalloc( ((size_t)N)*sizeof(PetscReal), &vec_params );
   *nParams=N;
   
   rewind(fp);
   p=0;
   while( fscanf(fp,"%f",&value) != EOF )
   {
-    vec_params[p]=value;
+    (*vec_params)[p]=(PetscReal)value;
     p++;
   }
   
@@ -48,8 +45,7 @@ PetscErrorCode loadSweepParameters( PetscInt *nParams, PetscComplex vec_params[]
 
 PetscErrorCode loadMatricies( const char *optStringArray[], BaseMat baseMatrixArray[], const PetscInt baseMatrixArraySize )
 {
-  MatInfo matinfo;
-  PetscInt i,m,n;
+  PetscInt i;
   PetscViewer viewer;
   PetscBool flg;
   PetscErrorCode ierr;
@@ -59,25 +55,19 @@ PetscErrorCode loadMatricies( const char *optStringArray[], BaseMat baseMatrixAr
   
   for(i=0; i<=baseMatrixArraySize-1; i++ )
   {
+    baseMatrixArray[i].Active=0;
+    
     PetscOptionsGetString(NULL,optStringArray[i],filename,PETSC_MAX_PATH_LEN,&flg);
     if (flg) 
     {
       PetscViewerBinaryOpen(PETSC_COMM_WORLD,filename,FILE_MODE_READ,&viewer);
       MatCreate(PETSC_COMM_WORLD,&baseMatrixArray[i].Matrix);
-      MatSetFromOptions(baseMatrixArray[i].Matrix);
+      MatSetType(baseMatrixArray[i].Matrix,MATMPIAIJ);      
       MatLoad(baseMatrixArray[i].Matrix,viewer);
       PetscViewerDestroy(&viewer);
       
       baseMatrixArray[i].Active=1;
-      
-      MatGetSize(baseMatrixArray[i].Matrix,&m,&n);
-      PetscPrintf(PETSC_COMM_WORLD,"%s: %d x %d\n",optStringArray[i],m,n);
-    } 
-    else
-    {
-      baseMatrixArray[i].Active=0;
     }
   }
-  
   return 0;
 }

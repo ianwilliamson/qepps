@@ -24,6 +24,7 @@
 #include "slepcpep.h"
 #include "const_qepps.h"
 #include "load.h"
+#include "assemble.h"
 #include <math.h>
 
 #undef __FUNCT__
@@ -44,7 +45,8 @@ int main(int argc,char **argv)
   
   /* ------------------------------------------------ */
   
-  PetscComplex lambda_solved, lambda_tgt, *vec_lambdas, *vec_params;
+  PetscComplex lambda_solved, lambda_tgt, *vec_lambdas;
+  PetscReal    *vec_params;
   PetscReal    error, tol;
   PetscInt     p, i, ev, nConverged, maxIterations, nIterations, nParams;
   
@@ -67,25 +69,26 @@ int main(int argc,char **argv)
   MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
   
   /* FREQUENCIES */
-  loadSweepParameters(&nParams,vec_params);
-  
+  //loadSweepParameters(&nParams,&vec_params);
+  nParams=1;
   /* MATRICIES */
-  PetscPrintf(PETSC_COMM_WORLD,"Loading E\n");
   loadMatricies( optsE, Eb, 3 );
-  PetscPrintf(PETSC_COMM_WORLD,"Loading D\n");
   loadMatricies( optsD, Db, 3 );
-  PetscPrintf(PETSC_COMM_WORLD,"Loading K\n");
   loadMatricies( optsK, Kb, 3 );
   
   /* INIT */
-  PetscMalloc(nParams*sizeof(PetscComplex),&vec_lambdas);
+  //PetscMalloc(nParams*sizeof(PetscComplex),&vec_lambdas);
   PetscOptionsGetScalar(NULL,"-lambda_tgt",&lambda_tgt,&flg);
-  if (!flg)
-    lambda_tgt=1;
-  PetscPrintf(PETSC_COMM_WORLD,"  lambda_tgt = %f + j%f\n",PetscRealPart(lambda_tgt),PetscImaginaryPart(lambda_tgt));
+  if (!flg) lambda_tgt=1;
   
   /* ------------------------------------------------ */
-  
+  MatCreate(PETSC_COMM_WORLD,&E);
+  MatCreate(PETSC_COMM_WORLD,&D);
+  MatCreate(PETSC_COMM_WORLD,&K);
+  MatSetType(E,MATMPIAIJ);
+  MatSetType(D,MATMPIAIJ);
+  MatSetType(K,MATMPIAIJ);
+      
   if( Eb[0].Active )
     MatDuplicate( Eb[0].Matrix, MAT_COPY_VALUES, &E );
   
@@ -94,41 +97,19 @@ int main(int argc,char **argv)
 
   if( Kb[0].Active )
     MatDuplicate( Kb[0].Matrix, MAT_COPY_VALUES, &K );
-    
+  
   PEPCreate(PETSC_COMM_WORLD,&pep);
   
   for (p=0; p<=nParams-1; p++)
   {
+    //PetscPrintf(PETSC_COMM_WORLD,"%.3f,  ",vec_params[p]);
     for (i=1; i<=2; i++)
     {
-      if( Eb[i].Active )
-      {
-        if( Eb[i-1].Active ) {
-          MatAXPY( E, pow(vec_params[p],i), Eb[i].Matrix, DIFFERENT_NONZERO_PATTERN );
-        } else {
-          MatDuplicate( Eb[i].Matrix, MAT_COPY_VALUES, &E );
-          MatScale( Eb[i].Matrix , pow(vec_params[p],i) );
-        }
-      }
-      if( Db[i].Active )
-      {
-        if( Db[i-1].Active ) {
-          MatAXPY( D, pow(vec_params[p],i), Db[i].Matrix, DIFFERENT_NONZERO_PATTERN );
-        } else {
-          MatDuplicate( Db[i].Matrix, MAT_COPY_VALUES, &D );
-          MatScale( Db[i].Matrix , pow(vec_params[p],i) );
-        }
-      }
-      if( Kb[i].Active )
-      {
-        if( Kb[i-1].Active ) {
-          MatAXPY( K, pow(vec_params[p],i), Kb[i].Matrix, DIFFERENT_NONZERO_PATTERN );
-        } else {
-          MatDuplicate( Kb[i].Matrix, MAT_COPY_VALUES, &K );
-          MatScale( Kb[i].Matrix , pow(vec_params[p],i) );
-        }
-      }
+      //incorporateMatrixComponent( E, pow( vec_params[p], i), Eb[i], Eb[i-1] );
+      //incorporateMatrixComponent( D, pow( vec_params[p], i), Db[i], Db[i-1] );
+      //incorporateMatrixComponent( K, pow( vec_params[p], i), Kb[i], Kb[i-1] );
     }
+     
     A[0]=K; A[1]=D; A[2]=E;
     PEPSetOperators(pep,3,A);
     PEPSetProblemType(pep,PEP_GENERAL);
@@ -136,18 +117,25 @@ int main(int argc,char **argv)
     
     /* ------------------------------------------------ */
     
-    PetscPrintf(PETSC_COMM_WORLD,"Running solver\n");
-    
     PEPSetTarget(pep,lambda_tgt);
     
     PEPSolve(pep);
     PEPGetConverged(pep,&nConverged);
     
-    for (ev=0; ev<nConverged; ev++)
+    if(nConverged >= 1)
     {
-      PEPGetEigenpair( pep, ev, &lambda_solved, NULL, NULL, NULL );
-      PetscPrintf(PETSC_COMM_WORLD,"  lambda = %f%+fj\n",PetscRealPart(lambda_solved),PetscImaginaryPart(lambda_solved));
-      lambda_tgt=lambda_solved;
+      for (ev=0; ev<nConverged; ev++)
+      {
+        PEPGetEigenpair( pep, ev, &lambda_solved, NULL, NULL, NULL );
+        PetscPrintf(PETSC_COMM_WORLD,"%.3f%+.3fj,  ",PetscRealPart(lambda_solved),PetscImaginaryPart(lambda_solved));
+        if(ev==0)
+          lambda_tgt=lambda_solved; // Set target for next parameter value
+      }
+      PetscPrintf(PETSC_COMM_WORLD,"\n");
+    }
+    else
+    {
+      // No eigen values found ...
     }
   }
   

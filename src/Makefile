@@ -8,7 +8,9 @@ SLEPC_INC=$(TACC_SLEPC_INC)
 include $(SLEPC_DIR)/conf/slepc_common
 
 SRC_FILES = \
-	load.c
+	load.c \
+	assemble.c
+
 OBJ_FILES = $(SRC_FILES:%.c=%.o)
 
 $(EXE): $(EXE).o $(OBJ_FILES)
@@ -16,5 +18,4 @@ $(EXE): $(EXE).o $(OBJ_FILES)
 	${RM} $(EXE).o $(OBJ_FILES)
 
 %.o: %.c
-	echo ${PETSC_COMPILE}
 	${PETSC_COMPILE} $< -o $@
