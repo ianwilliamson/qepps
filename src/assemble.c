@@ -1,7 +1,7 @@
 #include "slepcpep.h"
-#include "const_qepps.h"
+#include "common.h"
 
-void incorporateMatrixComponent( Mat A, PetscScalar scaleValue, BaseMat Ab, BaseMat Ab_p )
+void incorporateMatrixComponent( Mat A, PetscReal scaleValue, BaseMat Ab, BaseMat Ab_p )
 {
   if( Ab.Active )
   {

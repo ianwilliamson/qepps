@@ -8,6 +8,7 @@ SLEPC_INC=$(TACC_SLEPC_INC)
 include $(SLEPC_DIR)/conf/slepc_common
 
 SRC_FILES = \
+	sweeper.c \
 	load.c \
 	assemble.c
 

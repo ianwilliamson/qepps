@@ -21,134 +21,46 @@
  *                                                                          * 
  ****************************************************************************/
 
-#include "slepcpep.h"
-#include "const_qepps.h"
+#include <slepcpep.h>
+#include <petscbag.h>
+#include "help.h"
+#include "common.h"
 #include "load.h"
 #include "assemble.h"
-#include <math.h>
+#include "sweeper.h"
+
 
 #undef __FUNCT__
 #define __FUNCT__ "main"
 int main(int argc,char **argv)
 {
-  /* ------------------------------------------------ */
+  PetscBool flg;
+  PetscReal vec_params[3]={1.,2.,3.};
+  PetscComplex lambda_tgt;
+  PetscInt i, nParams;
+  PetscBag bag;
   
-  PEP     pep;          
-  PEPType type;
-  
-  PetscMPIInt    rank;
-  PetscViewer    viewer;
-  PetscBool      flg;
-  
-  FILE *fp;
-  char filename[PETSC_MAX_PATH_LEN];
-  
-  /* ------------------------------------------------ */
-  
-  PetscComplex lambda_solved, lambda_tgt, *vec_lambdas;
-  PetscReal    *vec_params;
-  PetscReal    error, tol;
-  PetscInt     p, i, ev, nConverged, maxIterations, nIterations, nParams;
-  
-  /* ------------------------------------------------ */
-  
-  Vec Ur, Ui; // soln vectors
-  
-  BaseMat Eb[3], Db[3], Kb[3];           // base matricies, loaded from disk
-  Mat     E,     D,     K,     A[3];     // complete matricies, storing scaled values 
+  BaseMat Eb[3], Db[3], Kb[3];           // base matricies, loaded from disk 
   
   const char *optsE[3]= {"-E0","-E1","-E2"}; // Input option strings so we can loop
   const char *optsD[3]= {"-D0","-D1","-D2"};
   const char *optsK[3]= {"-K0","-K1","-K2"};
   
-  /* ------------------------------------------------ */
-  
-  /* INITIALIZE */
   SlepcInitialize(&argc,&argv,(char*)0,help);
   
-  MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
-  
-  /* FREQUENCIES */
-  //loadSweepParameters(&nParams,&vec_params);
-  nParams=1;
-  /* MATRICIES */
-  loadMatricies( optsE, Eb, 3 );
-  loadMatricies( optsD, Db, 3 );
-  loadMatricies( optsK, Kb, 3 );
-  
-  /* INIT */
-  //PetscMalloc(nParams*sizeof(PetscComplex),&vec_lambdas);
+  loadSweepParameters(&bag);
+  loadMatricies(optsE,Eb,3);
+  loadMatricies(optsD,Db,3);
+  loadMatricies(optsK,Kb,3);
   PetscOptionsGetScalar(NULL,"-lambda_tgt",&lambda_tgt,&flg);
   if (!flg) lambda_tgt=1;
   
   /* ------------------------------------------------ */
-  MatCreate(PETSC_COMM_WORLD,&E);
-  MatCreate(PETSC_COMM_WORLD,&D);
-  MatCreate(PETSC_COMM_WORLD,&K);
-  MatSetType(E,MATMPIAIJ);
-  MatSetType(D,MATMPIAIJ);
-  MatSetType(K,MATMPIAIJ);
-      
-  if( Eb[0].Active )
-    MatDuplicate( Eb[0].Matrix, MAT_COPY_VALUES, &E );
   
-  if( Db[0].Active )
-    MatDuplicate( Db[0].Matrix, MAT_COPY_VALUES, &D );
-
-  if( Kb[0].Active )
-    MatDuplicate( Kb[0].Matrix, MAT_COPY_VALUES, &K );
-  
-  PEPCreate(PETSC_COMM_WORLD,&pep);
-  
-  for (p=0; p<=nParams-1; p++)
-  {
-    //PetscPrintf(PETSC_COMM_WORLD,"%.3f,  ",vec_params[p]);
-    for (i=1; i<=2; i++)
-    {
-      //incorporateMatrixComponent( E, pow( vec_params[p], i), Eb[i], Eb[i-1] );
-      //incorporateMatrixComponent( D, pow( vec_params[p], i), Db[i], Db[i-1] );
-      //incorporateMatrixComponent( K, pow( vec_params[p], i), Kb[i], Kb[i-1] );
-    }
-     
-    A[0]=K; A[1]=D; A[2]=E;
-    PEPSetOperators(pep,3,A);
-    PEPSetProblemType(pep,PEP_GENERAL);
-    PEPSetFromOptions(pep);
-    
-    /* ------------------------------------------------ */
-    
-    PEPSetTarget(pep,lambda_tgt);
-    
-    PEPSolve(pep);
-    PEPGetConverged(pep,&nConverged);
-    
-    if(nConverged >= 1)
-    {
-      for (ev=0; ev<nConverged; ev++)
-      {
-        PEPGetEigenpair( pep, ev, &lambda_solved, NULL, NULL, NULL );
-        PetscPrintf(PETSC_COMM_WORLD,"%.3f%+.3fj,  ",PetscRealPart(lambda_solved),PetscImaginaryPart(lambda_solved));
-        if(ev==0)
-          lambda_tgt=lambda_solved; // Set target for next parameter value
-      }
-      PetscPrintf(PETSC_COMM_WORLD,"\n");
-    }
-    else
-    {
-      // No eigen values found ...
-    }
-  }
+  qeppsSweeper(Eb,Db,Kb,lambda_tgt,&bag);
   
   /* ------------------------------------------------ */
-  
-  //PetscFree(vec_params);
-  //PetscFree(vec_lambdas);
-  
-  PEPDestroy(&pep);
-  MatDestroy(&E);
-  MatDestroy(&D);
-  MatDestroy(&K);
-  
+    
   for (i=0; i<=2; i++)
   {
     if( Eb[i].Active )
@@ -159,9 +71,9 @@ int main(int argc,char **argv)
       MatDestroy(&(Kb[i].Matrix));
   }
   
-  SlepcFinalize();
+  PetscBagDestroy(&bag);
   
-  /* ------------------------------------------------ */
+  SlepcFinalize();
   
   return 0;
 }

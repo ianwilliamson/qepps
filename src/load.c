@@ -1,55 +1,50 @@
 #include "slepcpep.h"
-#include "const_qepps.h"
+#include <petscbag.h>
+#include "common.h"
 
-PetscErrorCode loadSweepParameters( PetscInt *nParams, PetscReal **vec_params )
+void loadSweepParameters( PetscBag *bag )
 {
-  int N,p;
-  float value;
-  
-  /* ------------------------------------------------ */
-  
+  int i;
+  float value;  
   PetscBool flg;
-  PetscInt i;
-  
-  FILE *fp;
+  FILE *fp=NULL;
   char filename[PETSC_MAX_PATH_LEN];
-  
-  /* ------------------------------------------------ */
+  SweepSet *sweep;
   
   PetscOptionsGetString(NULL,"-params",filename,PETSC_MAX_PATH_LEN,&flg);
-  if (!flg) SETERRQ(PETSC_COMM_WORLD,1,"Must supply parameter sweep file in input arguments");
-  PetscFOpen(PETSC_COMM_SELF,filename,"r",&fp);
-  if (!fp) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"Unable to open file specifying sweep parameters");
-  
-  /* ------------------------------------------------ */
-  
-  N=0;
-  while ( fscanf(fp,"%*f") != EOF )
-    N++;
-  
-  PetscMalloc( ((size_t)N)*sizeof(PetscReal), &vec_params );
-  *nParams=N;
-  
-  rewind(fp);
-  p=0;
-  while( fscanf(fp,"%f",&value) != EOF )
+  if(flg) PetscFOpen(PETSC_COMM_SELF,filename,"r",&fp);
+  if(fp)
   {
-    (*vec_params)[p]=(PetscReal)value;
-    p++;
+    for(i=0; fscanf(fp,"%*f") != EOF; i++ )
+    
+    PetscBagCreate(PETSC_COMM_WORLD,SWEEPSET_SIZE(i),bag);
+    PetscBagGetData(*bag,(void**)&sweep);
+    sweep->size=i;
+    
+    rewind(fp);
+    for(i=0; fscanf(fp,"%f",&value) != EOF; i++ )
+      sweep->param[i]=(PetscReal)value;
+    
+    PetscFClose(PETSC_COMM_SELF,fp);
+  }
+  else
+  {  
+    PetscBagCreate(PETSC_COMM_WORLD,SWEEPSET_SIZE(1),bag);
+    PetscBagGetData(*bag,(void**)&sweep);
+    sweep->size=1;
+    sweep->param[0]=1;
   }
   
-  PetscFClose(PETSC_COMM_SELF,fp);
-  
-  return 0;
+  //PetscBagRegisterInt(*bag,&sweep->size,1,"Size","Number of parameter sweep values"); // Need to investigate this and the "default behavior
+  PetscBagRegisterRealArray(*bag,&sweep->param,sweep->size,"Parameters","Parameter sweep values");
 }
 
-PetscErrorCode loadMatricies( const char *optStringArray[], BaseMat baseMatrixArray[], const PetscInt baseMatrixArraySize )
+void loadMatricies( const char *optStringArray[], BaseMat baseMatrixArray[], const PetscInt baseMatrixArraySize )
 {
   PetscInt i;
   PetscViewer viewer;
   PetscBool flg;
   PetscErrorCode ierr;
-  
   FILE *fp;
   char filename[PETSC_MAX_PATH_LEN];
   
@@ -69,5 +64,5 @@ PetscErrorCode loadMatricies( const char *optStringArray[], BaseMat baseMatrixAr
       baseMatrixArray[i].Active=1;
     }
   }
-  return 0;
+  return;
 }

@@ -1,5 +1,6 @@
-#ifndef CONST_QEPPS
-#define CONST_QEPPS
+#ifndef QEPPS_HELP
+#define QEPPS_HELP
+
 static const char help[] = "qepps : Quadratic Eigenvalue Problem Parameter-sweeper\n\
 Loads matrices representing quadratic eigenvalue problem (QEP) and solves\n\
 (lambda^2*E+lambda*D+K)*U=0, where E, D, and K are matrices, U is a\n\
@@ -22,11 +23,5 @@ Parameters:\n\
     -qep_mpd <number>\n\
     -qep_type <type>\n\
     -st_shift <type>\n";
-    
-typedef struct
-{
-  PetscBool Active;
-  Mat Matrix;
-} BaseMat;
 
 #endif
