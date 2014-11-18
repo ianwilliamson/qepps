@@ -1,6 +1,6 @@
 #!/bin/bash
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-DATA_DIR="./1E3"
+DATA_DIR="./comsol_gr3d"
 $DIR/verifyBase.sh \
 	-params $DIR/common/freqs.txt \
 	-E0 $DIR/$DATA_DIR/E.dat \
