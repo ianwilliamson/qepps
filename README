@@ -2,18 +2,25 @@ Quadratic Eigenvalue Problem Parameter-sweeper (QEPPS)
 ============================================================
 
 Overview/background
---------------------------
+----------------------------------
 
 Loads matrices representing quadratic eigenvalue problem and solves 
 
-(lambda^2*E + lambda*D + K)*U = 0
+( lambda^2 * E + lambda * D + K )*U = 0
 
-where E, D, and K are matrices, U is a vector, and lambda is an eigenvalue. The matrix inputs (E, D, and K) are each be specified in components that can be combined in the form 
+where E, D, and K are matrices, U is the eigenvector, and lambda is the eigenvalue. Our group encounters such problems in optical/electromagnetic eigenvalue problems for waveguiding and periodic structures. In these problems, U corresponds to the electric or magnetic field and lambda corresponds to either the mode's guided effective index (in wave guides) or to the bloch wave vector in photonic crystals and other periodic systems.
 
-E = E0 + p*E1 + p^2*E2
-D = D0 + p*D1 + p^2*D2
-K = K0 + p*K1 + p^2*K2
+Implementation
+----------------------------------
 
-where p is some problem parameter (NOT the eigenvalue). p represents some parameter that should be swept (typically frequency or the free-space wavevector ki0 in electromagnetics) and is specified as an ASCII file with one p value per line.
+The polynomial eigenvalue problem (PEP) from PETSc/SLEPc 3.5 is used as the solver and the lightweight scripting language LUA with complex number support is used to handle configuration input. QEPPS aims to be as flexible as possible in the types of problems that it can handle. 
 
-The code assembles the total E, D, and K matrices for each value of p and computes the eigenvector (typically mode's field pattern) and eigenvalue (typically the mode's complex effective index) closest to some specified target.
+QEPPS allows the matrix inputs (E, D, and K) to be specified in components that can be combined in some functional form in terms of the parameter that is being swept, e.g. 
+
+E = E0*f1(p) + E1*f2(p) + E2*f3(p) + ...
+
+D = D0*g1(p) + D1*g2(p) + D2*g3(p) + ...
+
+K = K0*h1(p) + K1*h2(p) + K2*h3(p) + ...
+
+The values of p and the corresponding scaling functions are specified in an LUA script file that the user supplies to QEPPS at run time. The user may specify one or more scaling functions/component matrices for E, D, and K.
