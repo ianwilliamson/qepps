@@ -14,17 +14,22 @@ void assembleMatrix(lua_State *L, const char* array_name, Mat M, MatrixComponent
   
   lua_getglobal(L,"parameters"); // stack 1: param value array
   lua_getglobal(L,array_name);   // stack 2: function pointer array
-  if (lua_istable(L, 1) && lua_istable(L, 2))
+  if (lua_istable(L, -1) && lua_istable(L, -2))
   {
     for(i=1; i<=Mc->num; i++)
     {
-      lua_rawgeti(L, 2, i); //get current function
-      if (lua_isfunction(L,3))
+      lua_rawgeti(L, -1, i); //get current function
+      //PetscPrintf(PETSC_COMM_WORLD,"# LUA type is %s \n",lua_typename(L, lua_type(L,-1)));
+      if (lua_isfunction(L,-1))
       {
-        lua_rawgeti(L, 1, p); //get parameter value
+        //PetscPrintf(PETSC_COMM_WORLD,"# Is function i=%d p=%d \n",i,p);
+        lua_rawgeti(L, -3, p); //get parameter value
+        //PetscPrintf(PETSC_COMM_WORLD,"# param=%E%+Ej \n",PetscRealPart(getPetscComplexLUA(L)),PetscImaginaryPart(getPetscComplexLUA(L)));
         lua_call(L, 1, 1);    //call function
       } // if not a function, it will be treated as a value
       value=getComplexNumberLUA(L); //read
+      
+      //PetscPrintf(PETSC_COMM_WORLD,"# f(param)=%E%+Ej \n",PetscRealPart(getPetscComplexLUA(L)),PetscImaginaryPart(getPetscComplexLUA(L)));
       lua_pop(L,1); //remove read value
       MatAXPY( M, TO_PETSC_COMPLEX(value), Mc->matrix[i-1], DIFFERENT_NONZERO_PATTERN );
     }
@@ -90,8 +95,8 @@ void qeppsSweeper(lua_State *L)
       {
         PEPGetEigenpair( pep, ev, &lambda_solved, NULL, NULL, NULL );
         PetscPrintf(PETSC_COMM_WORLD,"%.3f%+.3fj,  ",PetscRealPart(lambda_solved),PetscImaginaryPart(lambda_solved));
-        if(ev==0)
-          lambda_tgt=lambda_solved; // Set target for next parameter value
+        //if(ev==0)
+        //  lambda_tgt=lambda_solved; // Set target for next parameter value
       }
     }
     else

@@ -1,4 +1,10 @@
 #!/bin/bash
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-DATA_DIR="./ppwg"
-$DIR/verifyBase.sh -lua $DIR/ppwg.lua -pep_basis monomial -pep_general -pep_type qarnoldi -st_type sinvert -st_transform "$@"
+
+MYDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+LUA_CFG=$MYDIR/ppwg.lua
+QEPPS_BIN=$MYDIR/../qepps
+
+ibrun -n 12 -o 0 $QEPPS_BIN -lua $LUA_CFG -pep_nev 6 -pep_tol 1e-16 \
+ -st_ksp_type preonly -st_pc_type lu -st_pc_factor_mat_solver_package mumps -st_type sinvert -st_transform
+ #-pep_basis monomial -pep_general -pep_type qarnoldi -st_type sinvert -st_transform "$@"
