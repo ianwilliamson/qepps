@@ -19,7 +19,6 @@ void loadSweepParameters( PetscBag *bag )
     
     PetscBagCreate(PETSC_COMM_WORLD,SWEEPSET_SIZE(i),bag);
     PetscBagGetData(*bag,(void**)&sweep);
-    sweep->size=i;
     
     rewind(fp);
     for(i=0; fscanf(fp,"%f",&value) != EOF; i++ )
@@ -28,14 +27,13 @@ void loadSweepParameters( PetscBag *bag )
     PetscFClose(PETSC_COMM_SELF,fp);
   }
   else
-  {  
-    PetscBagCreate(PETSC_COMM_WORLD,SWEEPSET_SIZE(1),bag);
+  { 
+    i=1; 
+    PetscBagCreate(PETSC_COMM_WORLD,SWEEPSET_SIZE(i),bag);
     PetscBagGetData(*bag,(void**)&sweep);
-    sweep->size=1;
     sweep->param[0]=1;
   }
-  
-  //PetscBagRegisterInt(*bag,&sweep->size,1,"Size","Number of parameter sweep values"); // Need to investigate this and the "default behavior
+  PetscBagRegisterInt(*bag,&sweep->size,i,"Size","Number of parameter sweep values");
   PetscBagRegisterRealArray(*bag,&sweep->param,sweep->size,"Parameters","Parameter sweep values");
 }
 

@@ -1,7 +1,18 @@
-EXE=qepps
-SRC_DIR = src
+SRC_DIR=src
+LUA_DIR=$(SRC_DIR)/lua
 
-.PHONY: qepps
+all: lua
+	$(MAKE) -C $(SRC_DIR) all
+	
+lua:
+	$(MAKE) -C $(LUA_DIR)
 
-$(EXE):
-	$(MAKE) -C $(SRC_DIR) $(EXE)
+
+.PHONY: clean clean-lua
+
+clean:
+	rm qepps config_reader
+	$(MAKE) -C $(SRC_DIR) clean
+
+clean-lua:
+	$(MAKE) -C $(LUA_DIR) clean

@@ -1,21 +1,51 @@
-#include "slepcpep.h"
-#include <petscbag.h>
+#include <slepcpep.h>
+#include <lua.h>
+#include <lauxlib.h>
+#include <lualib.h>
 #include "common.h"
+#include "lcomplex.h"
+#include "config.h"
 
-void qeppsSweeper(BaseMat Eb[], BaseMat Db[], BaseMat Kb[], PetscComplex lambda_tgt, PetscBag *bag)
+void assembleMatrix(lua_State *L, const char* array_name, Mat M, MatrixComponent *Mc, int p)
 {
-  PEP       pep;          
-  PEPType   type;
+  int i; p++; // LUA arrays are indexed from 1
+  PetscComplex value;
   
+  MatZeroEntries(M);
+  
+  lua_getglobal(L,"parameters"); // stack 1: param value array
+  lua_getglobal(L,array_name);   // stack 2: function pointer array
+  if (lua_istable(L, 1) && lua_istable(L, 2))
+  {
+    for(i=1; i<=Mc->num; i++)
+    {
+      lua_rawgeti(L, 2, i); //get current function
+      if (lua_isfunction(L,3))
+      {
+        lua_rawgeti(L, 1, p); //get parameter value
+        lua_call(L, 1, 1);    //call function
+      } // if not a function, it will be treated as a value
+      value=getPetscComplexLUA(L); //read
+      lua_pop(L,1); //remove read value
+      MatAXPY( M, value, Mc->matrix[i-1], DIFFERENT_NONZERO_PATTERN );
+    }
+  }
+  lua_pop(L,2); // pop both arrays
+  
+  MatAssemblyBegin(M,MAT_FINAL_ASSEMBLY);
+  MatAssemblyEnd(M,MAT_FINAL_ASSEMBLY);  
+}
+
+void qeppsSweeper(lua_State *L)
+{
+  PEP pep;       
   Vec Ur, Ui;        // soln vectors 
   Mat E, D, K, A[3]; // complete matricies, storing scaled values
-  SweepSet *sweep;
-
-  PetscComplex lambda_solved, *vec_lambdas;
-  PetscReal    error, tol;
-  PetscInt     p, i, ev, nConverged, maxIterations, nIterations;
-
-  PetscBagGetData(*bag,(void**)&sweep);
+  
+  ParameterSet *parameters = parseConfigParametersLUA(L);
+  MatrixComponent *Ec = parseConfigMatrixLUA(L, "Edat");
+  MatrixComponent *Dc = parseConfigMatrixLUA(L, "Ddat");
+  MatrixComponent *Kc = parseConfigMatrixLUA(L, "Kdat");
   
   MatCreate(PETSC_COMM_WORLD,&E);
   MatCreate(PETSC_COMM_WORLD,&D);
@@ -23,35 +53,34 @@ void qeppsSweeper(BaseMat Eb[], BaseMat Db[], BaseMat Kb[], PetscComplex lambda_
   MatSetType(E,MATMPIAIJ);
   MatSetType(D,MATMPIAIJ);
   MatSetType(K,MATMPIAIJ);
-    
-  if( Eb[0].Active )
-    MatDuplicate( Eb[0].Matrix, MAT_COPY_VALUES, &E );
   
-  if( Db[0].Active )
-    MatDuplicate( Db[0].Matrix, MAT_COPY_VALUES, &D );
+  lua_getglobal(L,"lambda_tgt");
+  PetscComplex lambda_tgt = getPetscComplexLUA(L); lua_pop(L,1);
 
-  if( Kb[0].Active )
-    MatDuplicate( Kb[0].Matrix, MAT_COPY_VALUES, &K );
+  PetscComplex lambda_solved;
+  PetscReal    error, tol;
+  PetscInt     i, ev, nConverged, maxIterations, nIterations;
+  int p;
   
+  MatDuplicate(Ec->matrix[0],MAT_SHARE_NONZERO_PATTERN,&E);
+  MatDuplicate(Dc->matrix[0],MAT_SHARE_NONZERO_PATTERN,&D);
+  MatDuplicate(Kc->matrix[0],MAT_SHARE_NONZERO_PATTERN,&K);
+  
+  A[0]=K; A[1]=D; A[2]=E;
   PEPCreate(PETSC_COMM_WORLD,&pep);
-  
-  for (p=0; p<sweep->size; p++)
-  {
-    PetscPrintf(PETSC_COMM_WORLD,"%.3f,  ",sweep->param[p]);
-    for (i=1; i<=2; i++)
-    {
-      incorporateMatrixComponent( E, PetscPowScalar( sweep->param[p],i), Eb[i], Eb[i-1] );
-      incorporateMatrixComponent( D, PetscPowScalar( sweep->param[p],i), Db[i], Db[i-1] );
-      incorporateMatrixComponent( K, PetscPowScalar( sweep->param[p],i), Kb[i], Kb[i-1] );
-    }
+  PEPSetProblemType(pep,PEP_GENERAL);
+  PEPSetFromOptions(pep);
+  PEPSetOperators(pep,3,A);
     
-    A[0]=K; A[1]=D; A[2]=E;
-    PEPSetOperators(pep,3,A);
-    PEPSetProblemType(pep,PEP_GENERAL);
-    PEPSetFromOptions(pep);
+  for (p=0; p<parameters->num; p++)
+  {
+    PetscPrintf(PETSC_COMM_WORLD,"%E,  ",parameters->param[p]);
+    
+    assembleMatrix(L,"Efuncs",E,Ec,p);
+    assembleMatrix(L,"Dfuncs",D,Dc,p);
+    assembleMatrix(L,"Kfuncs",K,Kc,p);
     
     PEPSetTarget(pep,lambda_tgt);
-    
     PEPSolve(pep);
     PEPGetConverged(pep,&nConverged);
     
@@ -71,10 +100,13 @@ void qeppsSweeper(BaseMat Eb[], BaseMat Db[], BaseMat Kb[], PetscComplex lambda_
       // No eigen values found ...
     }
   }
-    
+  
   PEPDestroy(&pep);
   MatDestroy(&E);
   MatDestroy(&D);
   MatDestroy(&K);
-
+  deleteMatrix(Ec);
+  deleteMatrix(Dc);
+  deleteMatrix(Kc);
+  free(parameters);
 }

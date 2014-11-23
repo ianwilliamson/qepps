@@ -23,58 +23,35 @@
 
 #include <slepcpep.h>
 #include <petscbag.h>
+
+#include <lua.h>
+#include <lauxlib.h>
+#include <lualib.h>
+#include <complex.h>
+#include <string.h>
+#include <stdlib.h>
+
 #include "help.h"
 #include "common.h"
 #include "load.h"
 #include "assemble.h"
 #include "sweeper.h"
-
+#include "config.h"
 
 #undef __FUNCT__
 #define __FUNCT__ "main"
 int main(int argc,char **argv)
 {
-  PetscBool flg;
-  PetscReal vec_params[3]={1.,2.,3.};
-  PetscComplex lambda_tgt;
-  PetscInt i, nParams;
-  PetscBag bag;
-  
-  BaseMat Eb[3], Db[3], Kb[3];           // base matricies, loaded from disk 
-  
-  const char *optsE[3]= {"-E0","-E1","-E2"}; // Input option strings so we can loop
-  const char *optsD[3]= {"-D0","-D1","-D2"};
-  const char *optsK[3]= {"-K0","-K1","-K2"};
-  
+  char filename[PETSC_MAX_PATH_LEN];
   SlepcInitialize(&argc,&argv,(char*)0,help);
   
-  loadSweepParameters(&bag);
-  loadMatricies(optsE,Eb,3);
-  loadMatricies(optsD,Db,3);
-  loadMatricies(optsK,Kb,3);
-  PetscOptionsGetScalar(NULL,"-lambda_tgt",&lambda_tgt,&flg);
-  if (!flg) lambda_tgt=1;
+  PetscOptionsGetString(NULL,"-lua",filename,PETSC_MAX_PATH_LEN,NULL);
+  lua_State *L = openConfigLUA(filename);
   
-  /* ------------------------------------------------ */
+  qeppsSweeper(L);
   
-  qeppsSweeper(Eb,Db,Kb,lambda_tgt,&bag);
-  
-  /* ------------------------------------------------ */
-    
-  for (i=0; i<=2; i++)
-  {
-    if( Eb[i].Active )
-      MatDestroy(&(Eb[i].Matrix));
-    if( Db[i].Active )
-      MatDestroy(&(Db[i].Matrix));
-    if( Kb[i].Active )
-      MatDestroy(&(Kb[i].Matrix));
-  }
-  
-  PetscBagDestroy(&bag);
-  
+  lua_close(L);  
   SlepcFinalize();
-  
   return 0;
 }
 
