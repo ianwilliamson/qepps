@@ -24,9 +24,16 @@ double complex getComplexNumberLUA(lua_State *L)
 
 PetscComplex getPetscComplexLUA(lua_State *L)
 {
-  double complex value;
-  value=getComplexNumberLUA(L);
-  return creal(value)+PETSC_i*cimag(value);
+  double complex value=getComplexNumberLUA(L);
+  return TO_PETSC_COMPLEX(value);
+}
+
+int getAraryLengthLUA(lua_State *L,const char* array_name)
+{
+  lua_getglobal(L,array_name);
+  int N = lua_rawlen(L, -1);
+  lua_pop(L,1);
+  return N; 
 }
 
 lua_State *openConfigLUA(const char* filename_settings)
@@ -40,14 +47,6 @@ lua_State *openConfigLUA(const char* filename_settings)
     error(L, "Error with configuration file: %s", lua_tostring(L, -1));
   
   return L;
-}
-
-int getAraryLengthLUA(lua_State *L,const char* array_name)
-{
-  lua_getglobal(L,array_name);
-  int N = lua_rawlen(L, -1);
-  lua_pop(L,1);
-  return N; 
 }
 
 ParameterSet *parseConfigParametersLUA(lua_State *L)

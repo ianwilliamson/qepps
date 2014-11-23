@@ -1,19 +1,8 @@
 #ifndef QEPPS_COMMON
 #define QEPPS_COMMON
 
-typedef struct
-{
-  PetscBool Active;
-  Mat Matrix;
-} BaseMat;
-
-typedef struct
-{
-    size_t size;
-    PetscReal param[1];
-} SweepSet;
-
-#define SWEEPSET_SIZE(x) (sizeof(SweepSet) + (sizeof(PetscReal) * ((x) - 1)))
+#define TO_PETSC_COMPLEX(x) ( creal(x)+PETSC_i*cimag(x) )
+#define TO_COMPLX_DOUBLE(x) ( PetscReal(x)+I*PetscImag(x) )
 
 typedef struct
 {

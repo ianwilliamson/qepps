@@ -22,7 +22,6 @@
  ****************************************************************************/
 
 #include <slepcpep.h>
-#include <petscbag.h>
 
 #include <lua.h>
 #include <lauxlib.h>
@@ -33,8 +32,6 @@
 
 #include "help.h"
 #include "common.h"
-#include "load.h"
-#include "assemble.h"
 #include "sweeper.h"
 #include "config.h"
 

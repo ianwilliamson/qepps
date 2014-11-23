@@ -3,13 +3,12 @@
 #include <lauxlib.h>
 #include <lualib.h>
 #include "common.h"
-#include "lcomplex.h"
 #include "config.h"
 
 void assembleMatrix(lua_State *L, const char* array_name, Mat M, MatrixComponent *Mc, int p)
 {
   int i; p++; // LUA arrays are indexed from 1
-  PetscComplex value;
+  double complex value;
   
   MatZeroEntries(M);
   
@@ -25,9 +24,9 @@ void assembleMatrix(lua_State *L, const char* array_name, Mat M, MatrixComponent
         lua_rawgeti(L, 1, p); //get parameter value
         lua_call(L, 1, 1);    //call function
       } // if not a function, it will be treated as a value
-      value=getPetscComplexLUA(L); //read
+      value=getComplexNumberLUA(L); //read
       lua_pop(L,1); //remove read value
-      MatAXPY( M, value, Mc->matrix[i-1], DIFFERENT_NONZERO_PATTERN );
+      MatAXPY( M, TO_PETSC_COMPLEX(value), Mc->matrix[i-1], DIFFERENT_NONZERO_PATTERN );
     }
   }
   lua_pop(L,2); // pop both arrays
@@ -70,8 +69,8 @@ void qeppsSweeper(lua_State *L)
   PEPCreate(PETSC_COMM_WORLD,&pep);
   PEPSetProblemType(pep,PEP_GENERAL);
   PEPSetFromOptions(pep);
-  PEPSetOperators(pep,3,A);
-    
+  //PEPSetOperators(pep,3,A);
+  
   for (p=0; p<parameters->num; p++)
   {
     PetscPrintf(PETSC_COMM_WORLD,"%E,  ",parameters->param[p]);
@@ -80,6 +79,7 @@ void qeppsSweeper(lua_State *L)
     assembleMatrix(L,"Dfuncs",D,Dc,p);
     assembleMatrix(L,"Kfuncs",K,Kc,p);
     
+    PEPSetOperators(pep,3,A);
     PEPSetTarget(pep,lambda_tgt);
     PEPSolve(pep);
     PEPGetConverged(pep,&nConverged);
@@ -93,12 +93,12 @@ void qeppsSweeper(lua_State *L)
         if(ev==0)
           lambda_tgt=lambda_solved; // Set target for next parameter value
       }
-      PetscPrintf(PETSC_COMM_WORLD,"\n");
     }
     else
     {
       // No eigen values found ...
     }
+    PetscPrintf(PETSC_COMM_WORLD,"\n");
   }
   
   PEPDestroy(&pep);
