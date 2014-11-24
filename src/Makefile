@@ -20,7 +20,7 @@ include $(SLEPC_DIR)/conf/slepc_common
 LUA_SRC=lcomplex.c config.c
 LUA_OBJ=$(LUA_SRC:%.c=%.o)
 
-PETSC_SRC=sweeper.c load.c assemble.c
+PETSC_SRC=sweeper.c 
 PETSC_OBJ=$(PETSC_SRC:%.c=%.o)
 
 all: qepps config_reader

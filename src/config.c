@@ -6,7 +6,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "lcomplex.h"
-#include "common.h"
+#include "types.h"
 
 double complex getComplexNumberLUA(lua_State *L)
 {

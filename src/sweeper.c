@@ -2,7 +2,8 @@
 #include <lua.h>
 #include <lauxlib.h>
 #include <lualib.h>
-#include "common.h"
+#include "types.h"
+#include "luavars.h"
 #include "config.h"
 
 void assembleMatrix(lua_State *L, const char* array_name, Mat M, MatrixComponent *Mc, int p)
@@ -12,24 +13,19 @@ void assembleMatrix(lua_State *L, const char* array_name, Mat M, MatrixComponent
   
   MatZeroEntries(M);
   
-  lua_getglobal(L,"parameters"); // stack 1: param value array
+  lua_getglobal(L,LUA_var_parameters); // stack 1: param value array
   lua_getglobal(L,array_name);   // stack 2: function pointer array
   if (lua_istable(L, -1) && lua_istable(L, -2))
   {
     for(i=1; i<=Mc->num; i++)
     {
       lua_rawgeti(L, -1, i); //get current function
-      //PetscPrintf(PETSC_COMM_WORLD,"# LUA type is %s \n",lua_typename(L, lua_type(L,-1)));
       if (lua_isfunction(L,-1))
       {
-        //PetscPrintf(PETSC_COMM_WORLD,"# Is function i=%d p=%d \n",i,p);
         lua_rawgeti(L, -3, p); //get parameter value
-        //PetscPrintf(PETSC_COMM_WORLD,"# param=%E%+Ej \n",PetscRealPart(getPetscComplexLUA(L)),PetscImaginaryPart(getPetscComplexLUA(L)));
         lua_call(L, 1, 1);    //call function
       } // if not a function, it will be treated as a value
       value=getComplexNumberLUA(L); //read
-      
-      //PetscPrintf(PETSC_COMM_WORLD,"# f(param)=%E%+Ej \n",PetscRealPart(getPetscComplexLUA(L)),PetscImaginaryPart(getPetscComplexLUA(L)));
       lua_pop(L,1); //remove read value
       MatAXPY( M, TO_PETSC_COMPLEX(value), Mc->matrix[i-1], DIFFERENT_NONZERO_PATTERN );
     }
@@ -47,9 +43,9 @@ void qeppsSweeper(lua_State *L)
   Mat E, D, K, A[3]; // complete matricies, storing scaled values
   
   ParameterSet *parameters = parseConfigParametersLUA(L);
-  MatrixComponent *Ec = parseConfigMatrixLUA(L, "Edat");
-  MatrixComponent *Dc = parseConfigMatrixLUA(L, "Ddat");
-  MatrixComponent *Kc = parseConfigMatrixLUA(L, "Kdat");
+  MatrixComponent *Ec = parseConfigMatrixLUA(L, LUA_array_Edat);
+  MatrixComponent *Dc = parseConfigMatrixLUA(L, LUA_array_Ddat);
+  MatrixComponent *Kc = parseConfigMatrixLUA(L, LUA_array_Kdat);
   
   MatCreate(PETSC_COMM_WORLD,&E);
   MatCreate(PETSC_COMM_WORLD,&D);
@@ -58,7 +54,7 @@ void qeppsSweeper(lua_State *L)
   MatSetType(D,MATMPIAIJ);
   MatSetType(K,MATMPIAIJ);
   
-  lua_getglobal(L,"lambda_tgt");
+  lua_getglobal(L,LUA_var_lambda_tgt);
   PetscComplex lambda_tgt = getPetscComplexLUA(L); lua_pop(L,1);
 
   PetscComplex lambda_solved;
@@ -74,17 +70,17 @@ void qeppsSweeper(lua_State *L)
   PEPCreate(PETSC_COMM_WORLD,&pep);
   PEPSetProblemType(pep,PEP_GENERAL);
   PEPSetFromOptions(pep);
-  //PEPSetOperators(pep,3,A);
   
   for (p=0; p<parameters->num; p++)
   {
     PetscPrintf(PETSC_COMM_WORLD,"%E,  ",parameters->param[p]);
     
-    assembleMatrix(L,"Efuncs",E,Ec,p);
-    assembleMatrix(L,"Dfuncs",D,Dc,p);
-    assembleMatrix(L,"Kfuncs",K,Kc,p);
+    assembleMatrix(L,LUA_array_Efuncs,E,Ec,p);
+    assembleMatrix(L,LUA_array_Dfuncs,D,Dc,p);
+    assembleMatrix(L,LUA_array_Kfuncs,K,Kc,p);
     
     PEPSetOperators(pep,3,A);
+    //PEPSetInitialSpace(pep,PetscInt n,Vec *is)
     PEPSetTarget(pep,lambda_tgt);
     PEPSolve(pep);
     PEPGetConverged(pep,&nConverged);

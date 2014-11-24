@@ -8,7 +8,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "common.h"
+#include "types.h"
 #include "config.h"
 
 #undef __FUNCT__

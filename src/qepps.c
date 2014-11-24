@@ -3,22 +3,6 @@
  *                                                                          *
  * Quadratic Eigenvalue Problem Parameter-sweeper                           *
  *                                                                          * 
- * Loads matrices representing quadratic eigenvalue problem and solves      *
- * (lambda^2*E+lambda*D+K)*U=0, where E, D, and K are matrices, U is a      * 
- * vector, and lambda is an eigenvalue. The matrix inputs (E, D, and K) are *
- * each be specified in components that can be combined in the form         *
- * E=E0+p*E1+p^2*E2, where p is some problem parameter (NOT the             * 
- * eigenvalue).                                                             *
- *                                                                          *
- * p represents some parameter that should be swept (typically frequency    *
- * or the free-space wavevector k_0 in electromagnetics) and is specified   *
- * as an ASCII file with one p value per line.                              *
- *                                                                          *
- * The code assembles the total E, D, and K matrices for each value of p    *
- * and computes the eigenvector (typically mode's field pattern) and        *
- * eigenvalue (typically the mode's complex effective index) closest to     *
- * some specified target.                                                   *
- *                                                                          * 
  ****************************************************************************/
 
 #include <slepcpep.h>
@@ -31,7 +15,7 @@
 #include <stdlib.h>
 
 #include "help.h"
-#include "common.h"
+#include "types.h"
 #include "sweeper.h"
 #include "config.h"
 

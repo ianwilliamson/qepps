@@ -1,5 +1,5 @@
-#ifndef QEPPS_COMMON
-#define QEPPS_COMMON
+#ifndef QEPPS_TYPES
+#define QEPPS_TYPES
 
 #define TO_PETSC_COMPLEX(x) ( creal(x)+PETSC_i*cimag(x) )
 #define TO_COMPLX_DOUBLE(x) ( PetscReal(x)+I*PetscImag(x) )
