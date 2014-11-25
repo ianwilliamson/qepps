@@ -1,12 +1,11 @@
-/****************************************************************************
- * Copyright (C) 2014 by Ian Williamson                                     *
- *                                                                          *
- * Quadratic Eigenvalue Problem Parameter-sweeper                           *
- *                                                                          * 
- ****************************************************************************/
+/*********************************************************
+ * QEPPS: Quadratic eigenvalue problem parameter sweeper *
+ * Developed by Ian Williamson                           *
+ * Supervised by Dr. Zheng Wang                          *
+ * Lab for Active Nano Devices, UT ECE                   *
+ *********************************************************/
 
 #include <slepcpep.h>
-
 #include <lua.h>
 #include <lauxlib.h>
 #include <lualib.h>
@@ -35,4 +34,3 @@ int main(int argc,char **argv)
   SlepcFinalize();
   return 0;
 }
-
