@@ -9,6 +9,12 @@
 #include "luavars.h"
 #include "types.h"
 
+/*!
+ *  Returns the most recently pushed variable on the LUA stack as a complex double data type.
+ *  This assumes that the value to be returned has already been pushed onto the stack, 
+ *  i.e. with a call to lua_getglobal() or as the result of function eval
+ *  Note: this function does not pop the value from the stack.
+ */
 double complex getComplexNumberLUA(lua_State *L)
 {
   double complex value;
@@ -23,12 +29,22 @@ double complex getComplexNumberLUA(lua_State *L)
   return value;
 }
 
+/*!
+ *  Returns the most recently pushed variable on the LUA stack as a PetscComplex data type.
+ *  This assumes that the value to be returned has already been pushed onto the stack, 
+ *  i.e. with a call to lua_getglobal() or as the result of function eval
+ *  Note: this function does not pop the value from the stack.
+ */
 PetscComplex getPetscComplexLUA(lua_State *L)
 {
   double complex value=getComplexNumberLUA(L);
   return TO_PETSC_COMPLEX(value);
 }
 
+/*! 
+ *  Returns the length of the LUA array identified by the string array_name. Pushes and pops
+ *  from the stack so the stack should be in the same state as before the call.
+ */
 int getAraryLengthLUA(lua_State *L,const char* array_name)
 {
   lua_getglobal(L,array_name);
@@ -37,6 +53,11 @@ int getAraryLengthLUA(lua_State *L,const char* array_name)
   return N; 
 }
 
+/*!
+ *  Sets up a new LUA state and opens the default LUA libraries Also opens the complex numbers
+ *  library. Runs the configuration script identified by the string filename_settings.
+ *  Returns the LUA state.
+ */
 lua_State *openConfigLUA(const char* filename_settings)
 {  
   lua_State *L=NULL;
@@ -53,6 +74,10 @@ lua_State *openConfigLUA(const char* filename_settings)
   return L;
 }
 
+/*!
+ *  Parses, from the specified LUA state, the parameter sweep data specified in the array
+ *  identified by the string defined in the global const LUA_var_parameters.
+ */
 ParameterSet *parseConfigParametersLUA(lua_State *L)
 {
   int i, N;
@@ -82,6 +107,10 @@ ParameterSet *parseConfigParametersLUA(lua_State *L)
   return parameters;
 }
 
+/*!
+ *  Parses, from the specified LUA state, the matrix data specified in the array identified
+ *  by the input string array_name.
+ */
 MatrixComponent *parseConfigMatrixLUA(lua_State *L, const char* array_name)
 {
   int i, N;
@@ -119,6 +148,10 @@ MatrixComponent *parseConfigMatrixLUA(lua_State *L, const char* array_name)
   return M;
 }
 
+/*!
+ *  Traverses the MatrixComponent struct and calls MatDestroy on each of the listed Mat's. After
+ *  this it frees the entire MatrixComponent struct.
+ */
 void deleteMatrix(MatrixComponent *M)
 {
   int i;

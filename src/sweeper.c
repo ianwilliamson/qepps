@@ -6,6 +6,10 @@
 #include "luavars.h"
 #include "config.h"
 
+/*!
+ *  This assembles the system matricies for each parameter value and handles all function evaluation
+ *  within the LUA state. Handles scaling/combining the component matricies.
+ */
 void assembleMatrix(lua_State *L, const char* array_name, Mat M, MatrixComponent *Mc, int p)
 {
   int i; p++; // LUA arrays are indexed from 1
@@ -36,17 +40,29 @@ void assembleMatrix(lua_State *L, const char* array_name, Mat M, MatrixComponent
   MatAssemblyEnd(M,MAT_FINAL_ASSEMBLY);  
 }
 
+/*!
+ *  This is the main driver function of the QEPPS package. Assumes that the LUA state has 
+ *  been primed with some configuration file.
+ */
 void qeppsSweeper(lua_State *L)
 {
   PEP pep;       
-  Vec Ur, Ui;        // soln vectors 
-  Mat E, D, K, A[3]; // complete matricies, storing scaled values
+  Vec Ur, Ui;
+  Mat E, D, K, A[3];
+  PetscComplex lambda_solved;
+  PetscReal    error, tol;
+  PetscInt     i, ev, nConverged, maxIterations, nIterations;
+  int p;
   
+  // From LUA state, get parameters that are to be swept
   ParameterSet *parameters = parseConfigParametersLUA(L);
+  // From LUA state, get and load matrix components
   MatrixComponent *Ec = parseConfigMatrixLUA(L, LUA_array_Edat);
   MatrixComponent *Dc = parseConfigMatrixLUA(L, LUA_array_Ddat);
   MatrixComponent *Kc = parseConfigMatrixLUA(L, LUA_array_Kdat);
   
+  // Initialize total matricies
+  // (we scale/sum the component matricies from the previous step into these)
   MatCreate(PETSC_COMM_WORLD,&E);
   MatCreate(PETSC_COMM_WORLD,&D);
   MatCreate(PETSC_COMM_WORLD,&K);
@@ -54,18 +70,17 @@ void qeppsSweeper(lua_State *L)
   MatSetType(D,MATMPIAIJ);
   MatSetType(K,MATMPIAIJ);
   
-  lua_getglobal(L,LUA_var_lambda_tgt);
-  PetscComplex lambda_tgt = getPetscComplexLUA(L); lua_pop(L,1);
-
-  PetscComplex lambda_solved;
-  PetscReal    error, tol;
-  PetscInt     i, ev, nConverged, maxIterations, nIterations;
-  int p;
-  
+  // Prime the total matricies with the problem size and nonzero pattern
   MatDuplicate(Ec->matrix[0],MAT_SHARE_NONZERO_PATTERN,&E);
   MatDuplicate(Dc->matrix[0],MAT_SHARE_NONZERO_PATTERN,&D);
   MatDuplicate(Kc->matrix[0],MAT_SHARE_NONZERO_PATTERN,&K);
   
+  // Get the target eigenvalue from the LUA state
+  lua_getglobal(L,LUA_var_lambda_tgt);
+  PetscComplex lambda_tgt = getPetscComplexLUA(L);
+  lua_pop(L,1);
+  
+  // Initialize the solver
   A[0]=K; A[1]=D; A[2]=E;
   PEPCreate(PETSC_COMM_WORLD,&pep);
   PEPSetProblemType(pep,PEP_GENERAL);
