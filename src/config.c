@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "lcomplex.h"
+#include "luavars.h"
 #include "types.h"
 
 double complex getComplexNumberLUA(lua_State *L)
@@ -44,7 +45,10 @@ lua_State *openConfigLUA(const char* filename_settings)
   luaL_requiref(L, "complex", &luaopen_complex, 1);
   
   if ( luaL_dofile(L, filename_settings) )
+  {
     error(L, "Error with configuration file: %s", lua_tostring(L, -1));
+    exit(1);
+  }
   
   return L;
 }
@@ -53,11 +57,17 @@ ParameterSet *parseConfigParametersLUA(lua_State *L)
 {
   int i, N;
   
-  N = getAraryLengthLUA(L,"parameters");
+  N = getAraryLengthLUA(L,LUA_var_parameters);
   ParameterSet *parameters = malloc( PARAMETER_SET_SIZE(N) );
+  if (parameters==NULL)
+  {
+    PetscPrintf(PETSC_COMM_WORLD,"Parameter set allocation failed! \n");
+    exit(1);
+  }
+  
   parameters->num=N;
   
-  lua_getglobal(L,"parameters");
+  lua_getglobal(L,LUA_var_parameters);
   if (lua_istable(L, -1))
   {
     for(i=1; i<=N; i++)
@@ -80,6 +90,11 @@ MatrixComponent *parseConfigMatrixLUA(lua_State *L, const char* array_name)
   
   N = getAraryLengthLUA(L,array_name);
   MatrixComponent *M = malloc( MATRIX_COMPONENT_SIZE(N) );
+  if (M==NULL)
+  {
+    PetscPrintf(PETSC_COMM_WORLD,"Matrix component '%s' allocation failed!\n",array_name);
+    exit(1);
+  }
   M->num = N;
   
   lua_getglobal(L,array_name);

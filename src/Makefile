@@ -10,8 +10,8 @@ LUALIB_DIR=$(LUA_DIR)/src
 LUABIN_DIR=$(LUA_DIR)/src
 
 #CC=icc
-CFLAGS=-g -O0 $(LUA_INCS) $(WARN) #-fPIC
-WARN=
+CFLAGS=-g -O0 $(LUA_INCS) $(WARN)
+WARN=-Wall -Wextra -Wshadow
 LUA_INCS=-I$(LUAINC_DIR)
 LUA_LIBS=-L$(LUALIB_DIR) -llua -lm
 
