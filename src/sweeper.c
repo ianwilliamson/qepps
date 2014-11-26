@@ -107,14 +107,14 @@ void qeppsSweeper(lua_State *L)
         PEPGetEigenpair( pep, ev, &lambda_solved, NULL, NULL, NULL );
         PetscPrintf(PETSC_COMM_WORLD,"%.3f%+.3fj, ",PetscRealPart(lambda_solved),PetscImaginaryPart(lambda_solved));
         if(ev==0)
-          /*lambda_tgt=lambda_solved; // Set target for next parameter value */
+          lambda_tgt=lambda_solved; // Set target for next parameter value
       }
       PetscPrintf(PETSC_COMM_WORLD,"\n");
     }
     else
     {
       PetscPrintf(PETSC_COMM_WORLD,"\n");
-      break // Stop sweeping if we don't solve for any eigen values. Need to investigate better ways to handle this.
+      break; // Stop sweeping if we don't solve for any eigen values. Need to investigate better ways to handle this.
     }
   }
   
