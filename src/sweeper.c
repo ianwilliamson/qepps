@@ -88,7 +88,7 @@ void qeppsSweeper(lua_State *L)
   
   for (p=0; p<parameters->num; p++)
   {
-    PetscPrintf(PETSC_COMM_WORLD,"%E,  ",parameters->param[p]);
+    PetscPrintf(PETSC_COMM_WORLD,"%E, ",parameters->param[p]);
     
     assembleMatrix(L,LUA_array_Efuncs,E,Ec,p);
     assembleMatrix(L,LUA_array_Dfuncs,D,Dc,p);
@@ -105,16 +105,17 @@ void qeppsSweeper(lua_State *L)
       for (ev=0; ev<nConverged; ev++)
       {
         PEPGetEigenpair( pep, ev, &lambda_solved, NULL, NULL, NULL );
-        PetscPrintf(PETSC_COMM_WORLD,"%.3f%+.3fj,  ",PetscRealPart(lambda_solved),PetscImaginaryPart(lambda_solved));
-        //if(ev==0)
-        //  lambda_tgt=lambda_solved; // Set target for next parameter value
+        PetscPrintf(PETSC_COMM_WORLD,"%.3f%+.3fj, ",PetscRealPart(lambda_solved),PetscImaginaryPart(lambda_solved));
+        if(ev==0)
+          /*lambda_tgt=lambda_solved; // Set target for next parameter value */
       }
+      PetscPrintf(PETSC_COMM_WORLD,"\n");
     }
     else
     {
-      // No eigen values found ...
+      PetscPrintf(PETSC_COMM_WORLD,"\n");
+      break // Stop sweeping if we don't solve for any eigen values. Need to investigate better ways to handle this.
     }
-    PetscPrintf(PETSC_COMM_WORLD,"\n");
   }
   
   PEPDestroy(&pep);
