@@ -11,7 +11,7 @@ lua:
 .PHONY: clean clean-lua
 
 clean:
-	rm qepps config_reader
+	rm qepps
 	$(MAKE) -C $(SRC_DIR) clean
 
 clean-lua:

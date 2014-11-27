@@ -1,8 +1,12 @@
 #ifndef QEPPS_TYPES
 #define QEPPS_TYPES
 
-#define TO_PETSC_COMPLEX(x) ( creal(x)+PETSC_i*cimag(x) )
-#define TO_COMPLX_DOUBLE(x) ( PetscReal(x)+I*PetscImag(x) )
+#include <stdbool.h>
+#include <complex.h>
+#include <string.h>
+
+#define TO_PETSC_COMPLEX(x)  ( creal(x) + PETSC_i*cimag(x) )
+#define TO_DOUBLE_COMPLEX(x) ( PetscRealPart(x) + I*PetscImaginaryPart(x) )
 
 typedef struct
 {
@@ -10,13 +14,6 @@ typedef struct
     Mat matrix[];
 } MatrixComponent;
 
-typedef struct
-{
-    int num;
-    PetscComplex param[];
-} ParameterSet;
-
 #define MATRIX_COMPONENT_SIZE(x) ( sizeof(MatrixComponent)+sizeof(Mat)*x )
-#define PARAMETER_SET_SIZE(x) ( sizeof(ParameterSet)+sizeof(PetscComplex)*x )
 
 #endif

@@ -13,7 +13,6 @@ options = {    lambda_tgt = 49.14-6.18*j, --Initial target for eigenvalue
            }
 
 -- Data files
-DIR = options['output_dir'] -- Take files from same dir as output
 Edat = {DIR.."/E2.dat" }
 Ddat = {DIR.."/D1.dat" }
 Kdat = {DIR.."/K0.dat", DIR.."/K2.dat", DIR.."/Ks.dat"}

@@ -19,13 +19,13 @@ int main (int argc, char **argv)
   if(argc >= 1)
   {
     lua_State *L = openConfigLUA(argv[1]);
-    ParameterSet *parameters = parseConfigParametersLUA(L);
+    //ParameterSet *parameters = parseConfigParametersLUA(L);
     
-    printf("Found %d parameters...\n",parameters->num);
+    //printf("Found %d parameters...\n",parameters->num);
     //for (i=0; i < parameters->num; i++)
     //  printf(" %E \n",parameters->param[i]);
       
-    free(parameters);
+    //free(parameters);
 
   }
 }

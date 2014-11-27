@@ -9,7 +9,6 @@
 #include <lua.h>
 #include <lauxlib.h>
 #include <lualib.h>
-#include <complex.h>
 #include <string.h>
 #include <stdlib.h>
 

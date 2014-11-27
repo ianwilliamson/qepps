@@ -2,7 +2,7 @@
 #define QEPPS_LUAVARS
 
 static const char LUA_var_parameters[] = "parameters";
-static const char LUA_var_lambda_tgt[] = "lambda_tgt";
+static const char LUA_var_options_table[] = "options";
 
 static const char LUA_array_Edat[] = "Edat";
 static const char LUA_array_Ddat[] = "Ddat";

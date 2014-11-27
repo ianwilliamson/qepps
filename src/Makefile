@@ -23,15 +23,15 @@ LUA_OBJ=$(LUA_SRC:%.c=%.o)
 PETSC_SRC=sweeper.c 
 PETSC_OBJ=$(PETSC_SRC:%.c=%.o)
 
-all: qepps config_reader
+all: qepps
 
 qepps: qepps.o $(PETSC_OBJ) $(LUA_OBJ)
 	-${CLINKER} qepps.o $(PETSC_OBJ) $(LUA_OBJ) -o ../qepps ${SLEPC_LIB} $(LUA_LIBS)
 	${RM} qepps.o
 	
-config_reader: config_reader.o $(LUA_OBJ)
-	-${CLINKER} config_reader.o $(LUA_OBJ) -o ../config_reader ${SLEPC_LIB} $(LUA_LIBS)
-	${RM} config_reader.o 
+#config_reader: config_reader.o $(LUA_OBJ)
+#	-${CLINKER} config_reader.o $(LUA_OBJ) -o ../config_reader ${SLEPC_LIB} $(LUA_LIBS)
+#	${RM} config_reader.o 
 
 #%.o: %.c
 #	${PETSC_COMPILE} $< -o $@ $(LUA_LIBS)

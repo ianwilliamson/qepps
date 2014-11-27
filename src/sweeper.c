@@ -29,7 +29,7 @@ void assembleMatrix(lua_State *L, const char* array_name, Mat M, MatrixComponent
         lua_rawgeti(L, -3, p); //get parameter value
         lua_call(L, 1, 1);    //call function
       } // if not a function, it will be treated as a value
-      value=getComplexNumberLUA(L); //read
+      value=returnComplexLUA(L); //read
       lua_pop(L,1); //remove read value
       MatAXPY( M, TO_PETSC_COMPLEX(value), Mc->matrix[i-1], DIFFERENT_NONZERO_PATTERN );
     }
@@ -53,9 +53,8 @@ void qeppsSweeper(lua_State *L)
   PetscReal    error, tol;
   PetscInt     i, ev, nConverged, maxIterations, nIterations;
   int p;
+  double complex lambda_tgt;
   
-  // From LUA state, get parameters that are to be swept
-  ParameterSet *parameters = parseConfigParametersLUA(L);
   // From LUA state, get and load matrix components
   MatrixComponent *Ec = parseConfigMatrixLUA(L, LUA_array_Edat);
   MatrixComponent *Dc = parseConfigMatrixLUA(L, LUA_array_Ddat);
@@ -76,9 +75,8 @@ void qeppsSweeper(lua_State *L)
   MatDuplicate(Kc->matrix[0],MAT_SHARE_NONZERO_PATTERN,&K);
   
   // Get the target eigenvalue from the LUA state
-  lua_getglobal(L,LUA_var_lambda_tgt);
-  PetscComplex lambda_tgt = getPetscComplexLUA(L);
-  lua_pop(L,1);
+  lambda_tgt = getOptComplexLUA(L,"lambda_tgt");
+  PetscPrintf(PETSC_COMM_WORLD,"# lambda_tgt set to %.3f%+.3fj\n",creal(lambda_tgt),cimag(lambda_tgt));
   
   // Initialize the solver
   A[0]=K; A[1]=D; A[2]=E;
@@ -86,17 +84,17 @@ void qeppsSweeper(lua_State *L)
   PEPSetProblemType(pep,PEP_GENERAL);
   PEPSetFromOptions(pep);
   
-  for (p=0; p<parameters->num; p++)
+  PetscPrintf(PETSC_COMM_WORLD,"# Sweeping %d parameters\n", getNumberOfParameters(L));
+  for (p=0; p < getNumberOfParameters(L); p++)
   {
-    PetscPrintf(PETSC_COMM_WORLD,"%E, ",parameters->param[p]);
+    PetscPrintf(PETSC_COMM_WORLD,"%E", getParameterValue(L,p) );
     
     assembleMatrix(L,LUA_array_Efuncs,E,Ec,p);
     assembleMatrix(L,LUA_array_Dfuncs,D,Dc,p);
     assembleMatrix(L,LUA_array_Kfuncs,K,Kc,p);
     
     PEPSetOperators(pep,3,A);
-    //PEPSetInitialSpace(pep,PetscInt n,Vec *is)
-    PEPSetTarget(pep,lambda_tgt);
+    PEPSetTarget(pep,TO_PETSC_COMPLEX(lambda_tgt));
     PEPSolve(pep);
     PEPGetConverged(pep,&nConverged);
     
@@ -105,17 +103,22 @@ void qeppsSweeper(lua_State *L)
       for (ev=0; ev<nConverged; ev++)
       {
         PEPGetEigenpair( pep, ev, &lambda_solved, NULL, NULL, NULL );
-        PetscPrintf(PETSC_COMM_WORLD,"%.3f%+.3fj, ",PetscRealPart(lambda_solved),PetscImaginaryPart(lambda_solved));
-        if(ev==0)
-          lambda_tgt=lambda_solved; // Set target for next parameter value
+        PetscPrintf(PETSC_COMM_WORLD,", %.3f%+.3fj",PetscRealPart(lambda_solved),PetscImaginaryPart(lambda_solved));
+        
+        if( ev==0 && getOptBooleanLUA(L,"update_lambda_tgt") )
+          lambda_tgt = TO_DOUBLE_COMPLEX(lambda_solved);
+        //if( ev==0 && getOptBooleanLUA(L,"update_initspace") )
+          //PEPSetInitialSpace(pep,PetscInt n,Vec *is)
+        //if( getOptBooleanLUA(L,"save_solutions") )
+          // Save logic
       }
-      PetscPrintf(PETSC_COMM_WORLD,"\n");
     }
     else
     {
       PetscPrintf(PETSC_COMM_WORLD,"\n");
       break; // Stop sweeping if we don't solve for any eigen values. Need to investigate better ways to handle this.
     }
+    PetscPrintf(PETSC_COMM_WORLD,"\n");
   }
   
   PEPDestroy(&pep);
@@ -125,5 +128,4 @@ void qeppsSweeper(lua_State *L)
   deleteMatrix(Ec);
   deleteMatrix(Dc);
   deleteMatrix(Kc);
-  free(parameters);
 }
