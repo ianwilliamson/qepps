@@ -1,15 +1,15 @@
 #ifndef QEPPS_LUAVARS
 #define QEPPS_LUAVARS
 
-static const char LUA_var_parameters[] = "parameters";
-static const char LUA_var_options_table[] = "options";
+#define LUA_var_parameters    "parameters"
+#define LUA_var_options_table "options"
 
-static const char LUA_array_Edat[] = "Edat";
-static const char LUA_array_Ddat[] = "Ddat";
-static const char LUA_array_Kdat[] = "Kdat";
+#define LUA_array_Edat "Edat"
+#define LUA_array_Ddat "Ddat"
+#define LUA_array_Kdat "Kdat"
 
-static const char LUA_array_Efuncs[] = "Efuncs";
-static const char LUA_array_Dfuncs[] = "Dfuncs";
-static const char LUA_array_Kfuncs[] = "Kfuncs";
+#define LUA_array_Efuncs "Efuncs"
+#define LUA_array_Dfuncs "Dfuncs"
+#define LUA_array_Kfuncs "Kfuncs"
 
 #endif

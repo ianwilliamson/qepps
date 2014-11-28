@@ -6,13 +6,10 @@
 #include "luavars.h"
 #include "config.h"
 
-/*!
- *  This assembles the system matricies for each parameter value and handles all function evaluation
- *  within the LUA state. Handles scaling/combining the component matricies.
- */
 void assembleMatrix(lua_State *L, const char* array_name, Mat M, MatrixComponent *Mc, int p)
 {
-  int i; p++; // LUA arrays are indexed from 1
+  int i;
+  p++; // LUA arrays are indexed from 1
   double complex value;
   
   MatZeroEntries(M);
@@ -40,10 +37,6 @@ void assembleMatrix(lua_State *L, const char* array_name, Mat M, MatrixComponent
   MatAssemblyEnd(M,MAT_FINAL_ASSEMBLY);  
 }
 
-/*!
- *  This is the main driver function of the QEPPS package. Assumes that the LUA state has 
- *  been primed with some configuration file.
- */
 void qeppsSweeper(lua_State *L)
 {
   PEP pep;       

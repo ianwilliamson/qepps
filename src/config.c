@@ -8,10 +8,7 @@
 #include "luavars.h"
 #include "config.h"
 
-/*! 
- *  
- */
-void pullFromTableLUA(lua_State *L,const char *table,const char *option)
+static void pullFromTableLUA(lua_State *L,const char *table,const char *option)
 {
   lua_getglobal(L,table);
   if (!lua_istable(L, -1)) error(L, "Error is not a table: %s", lua_tostring(L, -1));
@@ -19,19 +16,14 @@ void pullFromTableLUA(lua_State *L,const char *table,const char *option)
   lua_gettable(L, -2);
 }
 
-/*! 
- *  
- */
-void pullFromArrayLUA(lua_State *L,const char *array,int index)
+static void pullFromArrayLUA(lua_State *L,const char *array,int index)
 {
+  index++; // LUA is 1-indexed
   lua_getglobal(L,array);
   if (!lua_istable(L, -1)) error(L, "Error is not an array: %s", lua_tostring(L, -1));
-  lua_rawgeti(L, -1, index+1);
+  lua_rawgeti(L, -1, index);
 }
 
-/*! 
- *  Returns a complex double from the QEPPS options table in the LUA state
- */
 double complex getParameterValue(lua_State *L,int index)
 {
   double complex result;
@@ -41,10 +33,6 @@ double complex getParameterValue(lua_State *L,int index)
   return result;
 }
 
-/*! 
- *  Returns a string from the QEPPS options table in the LUA state
- *  Note that free() must be called
- */
 char *getOptStringLUA(lua_State *L,const char *option)
 {
   char *result;
@@ -55,9 +43,6 @@ char *getOptStringLUA(lua_State *L,const char *option)
   return result;
 }
 
-/*! 
- *  Returns a bolean from the QEPPS options table in the LUA state
- */
 bool getOptBooleanLUA(lua_State *L,const char *option)
 {
   bool result;
@@ -68,9 +53,6 @@ bool getOptBooleanLUA(lua_State *L,const char *option)
   return result;
 }
 
-/*! 
- *  Returns a complex double from the QEPPS options table in the LUA state
- */
 double complex getOptComplexLUA(lua_State *L,const char *option)
 {
   double complex result;
@@ -80,12 +62,6 @@ double complex getOptComplexLUA(lua_State *L,const char *option)
   return result;
 }
 
-/*!
- *  Returns the most recently pushed variable on the LUA stack as a complex double data type.
- *  This assumes that the value to be returned has already been pushed onto the stack, 
- *  i.e. with a call to lua_getglobal() or as the result of function eval
- *  Note: this function does not pop the value from the stack.
- */
 double complex returnComplexLUA(lua_State *L)
 {
   double complex result;
@@ -98,10 +74,6 @@ double complex returnComplexLUA(lua_State *L)
   return result;
 }
 
-/*! 
- *  Returns the length of the LUA array identified by the string array_name. Pushes and pops
- *  from the stack so the stack should be in the same state as before the call.
- */
 int getAraryLengthLUA(lua_State *L,const char* array_name)
 {
   lua_getglobal(L,array_name);
@@ -110,11 +82,6 @@ int getAraryLengthLUA(lua_State *L,const char* array_name)
   return N; 
 }
 
-/*!
- *  Sets up a new LUA state and opens the default LUA libraries Also opens the complex numbers
- *  library. Runs the configuration script identified by the string filename_settings.
- *  Returns the LUA state.
- */
 lua_State *openConfigLUA(const char* filename_settings)
 {  
   lua_State *L=NULL;
@@ -126,8 +93,7 @@ lua_State *openConfigLUA(const char* filename_settings)
   //lua_settop(L,0);
   //lua_pushnil(L);
   
-  if ( luaL_dofile(L, filename_settings) )
-  {
+  if ( luaL_dofile(L, filename_settings) ) {
     error(L, "Error with configuration file: %s", lua_tostring(L, -1));
     exit(1);
   }
@@ -137,10 +103,6 @@ lua_State *openConfigLUA(const char* filename_settings)
   return L;
 }
 
-/*!
- *  Parses, from the specified LUA state, the matrix data specified in the array identified
- *  by the input string array_name.
- */
 MatrixComponent *parseConfigMatrixLUA(lua_State *L, const char* array_name)
 {
   PetscInt m,n;
@@ -150,18 +112,15 @@ MatrixComponent *parseConfigMatrixLUA(lua_State *L, const char* array_name)
   
   N = getAraryLengthLUA(L,array_name);
   MatrixComponent *M = malloc( MATRIX_COMPONENT_SIZE(N) );
-  if (M==NULL)
-  {
+  if (M==NULL) {
     PetscPrintf(PETSC_COMM_WORLD,"#! Matrix component '%s' allocation failed!\n",array_name);
     exit(1);
   }
   M->num = N;
   
   lua_getglobal(L,array_name);
-  if (lua_istable(L, -1))
-  {
-    for(i=1; i<=N; i++)
-    {
+  if (lua_istable(L, -1)) {
+    for(i=1; i<=N; i++) {
       lua_rawgeti(L, -1, i);
       strcpy(filename, lua_tostring(L,-1));
       PetscViewerBinaryOpen( PETSC_COMM_WORLD, filename, FILE_MODE_READ, &viewer );
@@ -181,15 +140,10 @@ MatrixComponent *parseConfigMatrixLUA(lua_State *L, const char* array_name)
   return M;
 }
 
-/*!
- *  Traverses the MatrixComponent struct and calls MatDestroy on each of the listed Mat's. After
- *  this it frees the entire MatrixComponent struct.
- */
 void deleteMatrix(MatrixComponent *M)
 {
   int i;
-  for(i=0; i < M->num; i++)
-  {
+  for(i=0; i < M->num; i++) {
     MatDestroy( &(M->matrix[i]) );
   }
   free(M);
