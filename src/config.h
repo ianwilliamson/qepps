@@ -55,6 +55,6 @@ MatrixComponent *parseConfigMatrixLUA(lua_State *L, const char* array_name);
  */
 void deleteMatrix(MatrixComponent *M);
 
-#define getNumberOfParameters(L) getAraryLengthLUA(L,LUA_var_parameters)
+#define getNumberOfParameters(L) getAraryLengthLUA(L,LUA_array_parameters)
 
 #endif

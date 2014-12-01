@@ -8,14 +8,9 @@ for param = 3E12, 15E12, 0.25E12 do   parameters[#parameters+1] = param   end
 options = {    lambda_tgt = 49.14-6.18*j, --Initial target for eigenvalue
                output_dir = os.getenv("WORK").."/data_gr3d_base", --
         update_lambda_tgt = true, --Should the eigenvalue target be updated after each parameter value
-         update_initspace = false, --Should the initial space vectors be updated after each parameter value
-           save_solutions = false --Should the solution vectors be saved for every parameter
+         update_initspace = false, --For each param value, should the solver's init vector space be updated  with the solution from the previous param value
+           save_solutions = false --Should the solution vectors be saved for every parameter value
            }
-
--- Data files
-Edat = {DIR.."/E2.dat" }
-Ddat = {DIR.."/D1.dat" }
-Kdat = {DIR.."/K0.dat", DIR.."/K2.dat", DIR.."/Ks.dat"}
 
 -- Scaling functions
 function p0(x)   return x^0   end
@@ -37,7 +32,11 @@ function pS(x)
   return x*sGR
 end
 
-Efuncs = {p2}
-Dfuncs = {p1}
-Kfuncs = {p0, p2, pS}
+-- Data files
+matricies = {}
+matricies["E"] = {options["output_dir"].."/E2.dat",p2}
+matricies["D"] = {options["output_dir"].."/D1.dat",p1}
+matricies["K"] = {options["output_dir"].."/K0.dat",p0,
+                  options["output_dir"].."/K2.dat",p2,
+                  options["output_dir"].."/Ks.dat",pS}
 

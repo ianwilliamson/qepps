@@ -11,16 +11,13 @@ options = {    lambda_tgt = 1.4,
            save_solutions = false 
            }
 
-DIR = options['output_dir']
-Edat = {DIR .. "/E0.dat", DIR .. "/E1.dat", DIR .. "/E2.dat"}
-Ddat = {DIR .. "/D0.dat", DIR .. "/D1.dat", DIR .. "/D2.dat"}
-Kdat = {DIR .. "/K0.dat", DIR .. "/K1.dat", DIR .. "/K2.dat"}
-
 function p0(x)   return x^0   end
 function p1(x)   return x^1   end
 function p2(x)   return x^2   end
 
-Efuncs = {p0, p1, p2}
-Dfuncs = {p0, p1, p2}
-Kfuncs = {p0, p1, p2}
-
+-- Data files
+matricies = {}
+matricies["E"] = {options["output_dir"].."/E2.dat",p2}
+matricies["D"] = {options["output_dir"].."/D1.dat",p1}
+matricies["K"] = {options["output_dir"].."/K0.dat",p0,
+                  options["output_dir"].."/K2.dat",p2}

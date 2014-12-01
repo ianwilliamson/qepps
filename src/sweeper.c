@@ -6,41 +6,68 @@
 #include "luavars.h"
 #include "config.h"
 
-void assembleMatrix(lua_State *L, const char* array_name, Mat M, MatrixComponent *Mc, int p)
+static void assembleMatrix(lua_State *L, const char* matrix_key, Mat M, MatrixComponent *Mc, int p)
 {
-  int i;
+  int Nelems;
   p++; // LUA arrays are indexed from 1
   double complex value;
   
   MatZeroEntries(M);
   
-  lua_getglobal(L,LUA_var_parameters); // stack 1: param value array
-  lua_getglobal(L,array_name);   // stack 2: function pointer array
-  if (lua_istable(L, -1) && lua_istable(L, -2))
+  lua_getglobal(L,LUA_array_parameters);
+  if ( !lua_istable(L,-1) )
+    error(L,"#! LUA: '%s' is not a table\n",LUA_array_parameters);
+  
+  lua_getglobal(L,LUA_table_matricies);
+  if ( !lua_istable(L,-1) )
+    error(L,"#! LUA: '%s' is not a table\n",LUA_table_matricies);
+  
+  lua_pushstring(L,matrix_key);
+  lua_gettable(L,-2);
+  if ( !lua_istable(L,-1) )
+    error(L,"#! LUA: '%s[%s]' is not a table\n",LUA_table_matricies,matrix_key);
+  
+  Nelems = lua_rawlen(L, -1);
+  if(Nelems % 2)
+    error(L,"#! LUA: Length of '%s[%s]' is odd\n",LUA_table_matricies,matrix_key);
+  
+  int nm=0; // Function index
+  int ne=1; // Element index
+  while(ne<=Nelems && nm < Mc->num)
   {
-    for(i=1; i<=Mc->num; i++)
-    {
-      lua_rawgeti(L, -1, i); //get current function
-      if (lua_isfunction(L,-1))
-      {
-        lua_rawgeti(L, -3, p); //get parameter value
-        lua_call(L, 1, 1);    //call function
-      } // if not a function, it will be treated as a value
-      value=returnComplexLUA(L); //read
-      lua_pop(L,1); //remove read value
-      MatAXPY( M, TO_PETSC_COMPLEX(value), Mc->matrix[i-1], DIFFERENT_NONZERO_PATTERN );
+    lua_rawgeti(L, -1, ne);
+    
+    if( lua_type(L,-1) == LUA_TFUNCTION) {
+      lua_rawgeti(L, -4, p); // get parameter value
+      lua_call(L, 1, 1); // call function
+        
+      value=returnComplexLUA(L); // read value
+      lua_pop(L,1); // remove read value
+        
+      MatAXPY( M, TO_PETSC_COMPLEX(value), Mc->matrix[nm], DIFFERENT_NONZERO_PATTERN );
+        
+      nm++;
+      ne++;
+    } else {
+      lua_pop(L,1);
+      ne++;
     }
   }
-  lua_pop(L,2); // pop both arrays
+  lua_pop(L,3); //pop all arrays 
   
   MatAssemblyBegin(M,MAT_FINAL_ASSEMBLY);
   MatAssemblyEnd(M,MAT_FINAL_ASSEMBLY);  
 }
 
+static void saveSolutionVector(lua_State *L, Vec U, int p, int ev)
+{
+  return;
+}
+
 void qeppsSweeper(lua_State *L)
 {
   PEP pep;       
-  Vec Ur, Ui;
+  Vec U;
   Mat E, D, K, A[3];
   PetscComplex lambda_solved;
   PetscReal    error, tol;
@@ -49,9 +76,9 @@ void qeppsSweeper(lua_State *L)
   double complex lambda_tgt;
   
   // From LUA state, get and load matrix components
-  MatrixComponent *Ec = parseConfigMatrixLUA(L, LUA_array_Edat);
-  MatrixComponent *Dc = parseConfigMatrixLUA(L, LUA_array_Ddat);
-  MatrixComponent *Kc = parseConfigMatrixLUA(L, LUA_array_Kdat);
+  MatrixComponent *Ec = parseConfigMatrixLUA(L,LUA_key_matrix_E);
+  MatrixComponent *Dc = parseConfigMatrixLUA(L,LUA_key_matrix_D);
+  MatrixComponent *Kc = parseConfigMatrixLUA(L,LUA_key_matrix_K);
   
   // Initialize total matricies
   // (we scale/sum the component matricies from the previous step into these)
@@ -82,9 +109,9 @@ void qeppsSweeper(lua_State *L)
   {
     PetscPrintf(PETSC_COMM_WORLD,"%E", getParameterValue(L,p) );
     
-    assembleMatrix(L,LUA_array_Efuncs,E,Ec,p);
-    assembleMatrix(L,LUA_array_Dfuncs,D,Dc,p);
-    assembleMatrix(L,LUA_array_Kfuncs,K,Kc,p);
+    assembleMatrix(L,LUA_key_matrix_E,E,Ec,p);
+    assembleMatrix(L,LUA_key_matrix_D,D,Dc,p);
+    assembleMatrix(L,LUA_key_matrix_K,K,Kc,p);
     
     PEPSetOperators(pep,3,A);
     PEPSetTarget(pep,TO_PETSC_COMPLEX(lambda_tgt));
@@ -95,24 +122,31 @@ void qeppsSweeper(lua_State *L)
     {
       for (ev=0; ev<nConverged; ev++)
       {
-        PEPGetEigenpair( pep, ev, &lambda_solved, NULL, NULL, NULL );
+        if( getOptBooleanLUA(L,"save_solutions") || getOptBooleanLUA(L,"update_initspace") )
+          PEPGetEigenpair( pep, ev, &lambda_solved, NULL, U, NULL );
+        else
+          PEPGetEigenpair( pep, ev, &lambda_solved, NULL, NULL, NULL );
+        
         PetscPrintf(PETSC_COMM_WORLD,", %.3f%+.3fj",PetscRealPart(lambda_solved),PetscImaginaryPart(lambda_solved));
         
-        if( ev==0 && getOptBooleanLUA(L,"update_lambda_tgt") )
-          lambda_tgt = TO_DOUBLE_COMPLEX(lambda_solved);
-        //if( ev==0 && getOptBooleanLUA(L,"update_initspace") )
-          //PEPSetInitialSpace(pep,PetscInt n,Vec *is)
-        //if( getOptBooleanLUA(L,"save_solutions") )
-          // Save logic
-      }
+        if(ev==0)
+        {
+          if( getOptBooleanLUA(L,"update_lambda_tgt") )
+            lambda_tgt = TO_DOUBLE_COMPLEX(lambda_solved);
+          if( getOptBooleanLUA(L,"update_initspace") )
+            PEPSetInitialSpace(pep,1,&U);
+          if( getOptBooleanLUA(L,"save_solutions") )
+            saveSolutionVector(L,U,p,ev);
+        }
+      } // loop converged
     }
     else
     {
       PetscPrintf(PETSC_COMM_WORLD,"\n");
-      break; // Stop sweeping if we don't solve for any eigen values. Need to investigate better ways to handle this.
+      break; // Stop sweeping if we don't solve for any eigenvalues.
     }
     PetscPrintf(PETSC_COMM_WORLD,"\n");
-  }
+  } // loop parameters
   
   PEPDestroy(&pep);
   MatDestroy(&E);

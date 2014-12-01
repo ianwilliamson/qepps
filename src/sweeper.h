@@ -7,10 +7,4 @@
  */
 void qeppsSweeper(lua_State *L);
 
-/*!
- *  This is the main driver function of the QEPPS package. Assumes that the LUA state has 
- *  been primed with some configuration file.
- */
-void assembleMatrix(lua_State *L, const char* array_name, Mat M, MatrixComponent *Mc, int p);
-
 #endif
