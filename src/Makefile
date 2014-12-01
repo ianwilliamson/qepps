@@ -9,41 +9,19 @@ LUAINC_DIR=$(LUA_DIR)/src
 LUALIB_DIR=$(LUA_DIR)/src
 LUABIN_DIR=$(LUA_DIR)/src
 
-#CC=icc
-CFLAGS=-g -O0 $(LUA_INCS) $(WARN)
 WARN=-Wall -Wextra -Wshadow
 LUA_INCS=-I$(LUAINC_DIR)
 LUA_LIBS=-L$(LUALIB_DIR) -llua -lm
+CFLAGS=-O2 $(LUA_INCS) $(WARN)
 
 include $(SLEPC_DIR)/conf/slepc_common
 
-LUA_SRC=lcomplex.c config.c
-LUA_OBJ=$(LUA_SRC:%.c=%.o)
-
-PETSC_SRC=sweeper.c 
-PETSC_OBJ=$(PETSC_SRC:%.c=%.o)
+SRC_FILES=sweeper.c lcomplex.c config.c
+OBJ_FILES=$(SRC_FILES:%.c=%.o)
 
 all: qepps
 
-qepps: qepps.o $(PETSC_OBJ) $(LUA_OBJ)
-	-${CLINKER} qepps.o $(PETSC_OBJ) $(LUA_OBJ) -o ../qepps ${SLEPC_LIB} $(LUA_LIBS)
-	${RM} qepps.o
-	
-#config_reader: config_reader.o $(LUA_OBJ)
-#	-${CLINKER} config_reader.o $(LUA_OBJ) -o ../config_reader ${SLEPC_LIB} $(LUA_LIBS)
-#	${RM} config_reader.o 
+qepps: qepps.o $(OBJ_FILES)
+	-${CLINKER} qepps.o $(OBJ_FILES) -o ../qepps ${SLEPC_LIB} $(LUA_LIBS)
+	${RM} *.o
 
-#%.o: %.c
-#	${PETSC_COMPILE} $< -o $@ $(LUA_LIBS)
-
-#config:	$(LUA_OBJ) lua
-#	${PETSC_COMPILE} -o ../$@ $@.o $(LUA_OBJ) $(LIBS)
-
-#lua: 
-#	$(MAKE) -C lua
-
-#MAKESO=$(CC) -shared -Wl,-E
-#COMPLEX_NAME=complex
-#COMPLEX_LIB=l$(COMPLEX_NAME)
-#(COMPLEX_NAME).so: $(COMPLEX_LIB).o
-#	$(MAKESO) -o $@ $(COMPLEX_LIB).o
