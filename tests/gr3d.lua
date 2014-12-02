@@ -2,14 +2,15 @@ j=complex.I -- For convenience
 
 -- Parameter values to sweep
 parameters = {}
-for param = 3E12, 15E12, 0.25E12 do   parameters[#parameters+1] = param   end
+for param = 4E12, 8E12, 0.25E12 do   parameters[#parameters+1] = param   end
 
 -- Software Options
 options = {    lambda_tgt = 49.14-6.18*j, --Initial target for eigenvalue
                output_dir = os.getenv("WORK").."/data_gr3d_base", --
         update_lambda_tgt = true, --Should the eigenvalue target be updated after each parameter value
          update_initspace = false, --For each param value, should the solver's init vector space be updated  with the solution from the previous param value
-           save_solutions = false --Should the solution vectors be saved for every parameter value
+           save_solutions = false, --Should the solution vectors be saved for every parameter value
+             print_timing = true
            }
 
 -- Scaling functions

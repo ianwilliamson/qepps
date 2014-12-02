@@ -16,6 +16,10 @@
 
 #include <lua.h>
 #include <slepcpep.h>
+#include <unistd.h>
+#include <grvy.h>
+#include <sys/time.h>
+#include <time.h>
 #include "types.h"
 #include "luavars.h"
 #include "config.h"
@@ -86,8 +90,12 @@ void qeppsSweeper(lua_State *L)
   PetscComplex lambda_solved;
   PetscReal    error, tol;
   PetscInt     i, ev, nConverged, maxIterations, nIterations;
+  PetscMPIInt  rank;
   int p;
   double complex lambda_tgt;
+  
+  grvy_timer_init("qepps_parameter_sweep");
+  grvy_timer_begin("setup");
   
   // From LUA state, get and load matrix components
   MatrixComponent *Ec = parseConfigMatrixLUA(L,LUA_key_matrix_E);
@@ -119,8 +127,11 @@ void qeppsSweeper(lua_State *L)
   PEPSetFromOptions(pep);
   
   PetscPrintf(PETSC_COMM_WORLD,"# Sweeping %d parameters\n", getNumberOfParameters(L));
+  grvy_timer_end("setup");
   for (p=0; p < getNumberOfParameters(L); p++)
   {
+    grvy_timer_begin("iteration");
+    
     PetscPrintf(PETSC_COMM_WORLD,"%E", getParameterValue(L,p) );
     
     assembleMatrix(L,LUA_key_matrix_E,E,Ec,p);
@@ -160,8 +171,11 @@ void qeppsSweeper(lua_State *L)
       break; // Stop sweeping if we don't solve for any eigenvalues.
     }
     PetscPrintf(PETSC_COMM_WORLD,"\n");
+    
+    grvy_timer_end("iteration");
   } // loop parameters
   
+  grvy_timer_begin("clean");
   PEPDestroy(&pep);
   MatDestroy(&E);
   MatDestroy(&D);
@@ -169,4 +183,24 @@ void qeppsSweeper(lua_State *L)
   deleteMatrix(Ec);
   deleteMatrix(Dc);
   deleteMatrix(Kc);
+  grvy_timer_end("clean");
+  
+  grvy_timer_finalize();
+  
+  MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
+  if( getOptBooleanLUA(L,"print_timing") && !rank )
+  {
+    printf("# \n");
+    printf("# total time: %10.5E secs\n",grvy_timer_elapsed_global());
+    printf("# \n");
+    printf("#      setup: %10.5E secs\n",grvy_timer_elapsedseconds("setup"));
+    printf("#  iteration: %10.5E secs\n",grvy_timer_elapsedseconds("iteration"));
+    printf("#      clean: %10.5E secs\n",grvy_timer_elapsedseconds("clean"));
+    printf("# \n");
+    printf("# iteration (   count): %i\n",grvy_timer_stats_count("iteration"));
+    printf("# iteration (    mean): %E secs\n",grvy_timer_stats_mean("iteration"));
+    printf("# iteration (variance): %E secs\n",grvy_timer_stats_variance("iteration"));
+    printf("# iteration (     min): %E secs\n",grvy_timer_stats_min("iteration"));
+    printf("# iteration (     max): %E secs\n",grvy_timer_stats_max("iteration"));
+  }
 }

@@ -8,7 +8,8 @@ options = {    lambda_tgt = 1.4,
                output_dir = os.getenv("WORK").."/data_ppwg_base",
         update_lambda_tgt = false, 
          update_initspace = false,
-           save_solutions = false 
+           save_solutions = false,
+             print_timing = true
            }
 
 function p0(x)   return x^0   end
