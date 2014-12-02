@@ -1,3 +1,19 @@
+//-----------------------------------------------------------------------bl-
+//--------------------------------------------------------------------------
+// 
+// QEPPS: Quadratic eigenvalue problem parameter sweeper
+//
+// Copyright (C) 2014 Lab for Active Nano Devices, UT ECE 
+// Developed by Ian Williamson 
+// Supervised by Dr. Zheng Wang 
+//
+//-----------------------------------------------------------------------el-
+// 
+// The driver function and its auxiliaries
+// 
+//--------------------------------------------------------------------------
+//--------------------------------------------------------------------------
+
 #ifndef QEPPS_SWEEPER
 #define QEPPS_SWEEPER
 

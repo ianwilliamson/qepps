@@ -1,3 +1,20 @@
+//-----------------------------------------------------------------------bl-
+//--------------------------------------------------------------------------
+// 
+// QEPPS: Quadratic eigenvalue problem parameter sweeper
+//
+// Copyright (C) 2014 Lab for Active Nano Devices, UT ECE 
+// Developed by Ian Williamson 
+// Supervised by Dr. Zheng Wang 
+//
+//-----------------------------------------------------------------------el-
+// 
+// Configuration subsystem for interacting with the LUA state, loading the
+// lua script file, and loading the data matricies
+// 
+//--------------------------------------------------------------------------
+//--------------------------------------------------------------------------
+
 #ifndef QEPPS_CONFIG
 #define QEPPS_CONFIG
 

@@ -1,14 +1,27 @@
-#include <slepcpep.h>
+//-----------------------------------------------------------------------bl-
+//--------------------------------------------------------------------------
+// 
+// QEPPS: Quadratic eigenvalue problem parameter sweeper
+//
+// Copyright (C) 2014 Lab for Active Nano Devices, UT ECE 
+// Developed by Ian Williamson 
+// Supervised by Dr. Zheng Wang 
+//
+//-----------------------------------------------------------------------el-
+// 
+// Configuration subsystem for interacting with the LUA state, loading the
+// lua script file, and loading the data matricies
+// 
+//--------------------------------------------------------------------------
+//--------------------------------------------------------------------------
+
 #include <lua.h>
 #include <lauxlib.h>
-#include <lualib.h>
-#include <stdlib.h>
-#include <stdio.h>
+#include <petscmat.h>
 #include <stdarg.h>
 #include "types.h"
-#include "lcomplex.h"
 #include "luavars.h"
-#include "config.h"
+#include "lcomplex.h"
 
 static void error(lua_State *L, const char *fmt, ...)
 {
@@ -18,6 +31,18 @@ static void error(lua_State *L, const char *fmt, ...)
 	va_end(argp);
 	lua_close(L);
 	exit(EXIT_FAILURE);
+}
+
+double complex returnComplexLUA(lua_State *L)
+{
+  double complex result;
+  if ( lua_type(L,-1) == LUA_TNUMBER )
+    result=lua_tonumber(L,-1)+I*0;
+  else if( lua_type(L,-1) == LUA_TUSERDATA )
+    result=*( (double complex *)lua_touserdata(L,-1) );
+  else
+    error(L,"#! LUA: Requested option is not of type 'double complex'\n");
+  return result;
 }
 
 static void pullFromTableLUA(lua_State *L,const char *table,const char *option)
@@ -71,18 +96,6 @@ double complex getOptComplexLUA(lua_State *L,const char *option)
   pullFromTableLUA(L,LUA_array_options,option);
   result=returnComplexLUA(L);
   lua_pop(L,2);
-  return result;
-}
-
-double complex returnComplexLUA(lua_State *L)
-{
-  double complex result;
-  if ( lua_type(L,-1) == LUA_TNUMBER )
-    result=lua_tonumber(L,-1)+I*0;
-  else if( lua_type(L,-1) == LUA_TUSERDATA )
-    result=*( (double complex *)lua_touserdata(L,-1) );
-  else
-    error(L,"#! LUA: Requested option is not of type 'double complex'\n");
   return result;
 }
 

@@ -1,17 +1,21 @@
-/*********************************************************
- * QEPPS: Quadratic eigenvalue problem parameter sweeper *
- * Developed by Ian Williamson                           *
- * Supervised by Dr. Zheng Wang                          *
- * Lab for Active Nano Devices, UT ECE                   *
- *********************************************************/
+//-----------------------------------------------------------------------bl-
+//--------------------------------------------------------------------------
+// 
+// QEPPS: Quadratic eigenvalue problem parameter sweeper
+//
+// Copyright (C) 2014 Lab for Active Nano Devices, UT ECE 
+// Developed by Ian Williamson 
+// Supervised by Dr. Zheng Wang 
+//
+//-----------------------------------------------------------------------el-
+// 
+// Initializes Petsc and LUA and then calls the sweeper driver function
+// 
+//--------------------------------------------------------------------------
+//--------------------------------------------------------------------------
 
-#include <slepcpep.h>
 #include <lua.h>
-#include <lauxlib.h>
-#include <lualib.h>
-#include <string.h>
-#include <stdlib.h>
-
+#include <slepcsys.h> 
 #include "help.h"
 #include "types.h"
 #include "sweeper.h"

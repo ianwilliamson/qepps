@@ -1,7 +1,21 @@
-#include <slepcpep.h>
+//-----------------------------------------------------------------------bl-
+//--------------------------------------------------------------------------
+// 
+// QEPPS: Quadratic eigenvalue problem parameter sweeper
+//
+// Copyright (C) 2014 Lab for Active Nano Devices, UT ECE 
+// Developed by Ian Williamson 
+// Supervised by Dr. Zheng Wang 
+//
+//-----------------------------------------------------------------------el-
+// 
+// The driver function and its auxiliaries
+// 
+//--------------------------------------------------------------------------
+//--------------------------------------------------------------------------
+
 #include <lua.h>
-#include <lauxlib.h>
-#include <lualib.h>
+#include <slepcpep.h>
 #include "types.h"
 #include "luavars.h"
 #include "config.h"

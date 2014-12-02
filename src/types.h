@@ -1,3 +1,20 @@
+//-----------------------------------------------------------------------bl-
+//--------------------------------------------------------------------------
+// 
+// QEPPS: Quadratic eigenvalue problem parameter sweeper
+//
+// Copyright (C) 2014 Lab for Active Nano Devices, UT ECE 
+// Developed by Ian Williamson 
+// Supervised by Dr. Zheng Wang 
+//
+//-----------------------------------------------------------------------el-
+// 
+// QEPPS-wide type defs and helper defs for converting complex numbers
+// to and from Petsc format
+// 
+//--------------------------------------------------------------------------
+//--------------------------------------------------------------------------
+
 #ifndef QEPPS_TYPES
 #define QEPPS_TYPES
 
