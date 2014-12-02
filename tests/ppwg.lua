@@ -5,7 +5,7 @@ for param = 0.1E12, 1.5E12, 0.05E12 do   parameters[#parameters+1] = param   end
 
 -- Software Options
 options = {    lambda_tgt = 1.4,
-               output_dir = os.getenv("WORK").."/data_gr3d_base",
+               output_dir = os.getenv("WORK").."/data_ppwg_base",
         update_lambda_tgt = false, 
          update_initspace = false,
            save_solutions = false 
