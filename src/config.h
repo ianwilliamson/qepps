@@ -10,7 +10,7 @@
 //-----------------------------------------------------------------------el-
 // 
 // Configuration subsystem for interacting with the LUA state, loading the
-// lua script file, and loading the data matricies
+// lua script file, and loading the data matricies, etc
 // 
 //--------------------------------------------------------------------------
 //--------------------------------------------------------------------------
@@ -19,59 +19,74 @@
 #define QEPPS_CONFIG
 
 /*! 
+ *  Returns parameters[index+1] from the LUA state
+ */
+double complex getParameterValue(int index);
+
+/*! 
+ *  Returns the size of the parameters table in the LUA state
+ */
+int getNumberOfParameters();
+
+/*! 
+ *  Returns a string from the QEPPS options table in the LUA state, returns default_value
+ *  if option is not defined
  *  
+ *  free() must be called on the returned pointer
  */
-double complex getParameterValue(lua_State *L,int index);
+char *getOptStringLUA(const char *option,const char *default_value);
 
 /*! 
- *  Returns a string from the QEPPS options table in the LUA state
- *  Note that free() must be called
+ *  Returns a bolean from the QEPPS options table in the LUA state, returns default_value
+ *  if option is not defined
  */
-char *getOptStringLUA(lua_State *L,const char *option,const char *default_value);
+bool getOptBooleanLUA(const char *option, bool default_value);
 
 /*! 
- *  Returns a bolean from the QEPPS options table in the LUA state
+ *  Returns a complex double from the QEPPS options table in the LUA state, returns default_value
+ *  if option is not defined
  */
-bool getOptBooleanLUA(lua_State *L,const char *option, bool default_value);
-
-/*! 
- *  Returns a complex double from the QEPPS options table in the LUA state
- */
-double complex getOptComplexLUA(lua_State *L,const char *option,double complex default_value);
-
-/*!
- *  Returns the most recently pushed variable on the LUA stack as a complex double data type.
- *  This assumes that the value to be returned has already been pushed onto the stack, 
- *  i.e. with a call to lua_getglobal() or as the result of function eval
- *  Note: this function does not pop the value from the stack.
- */
-double complex returnComplexLUA(lua_State *L);
+double complex getOptComplexLUA(const char *option,double complex default_value);
 
 /*! 
  *  Returns the length of the LUA array identified by the string array_name. Pushes and pops
  *  from the stack so the stack should be in the same state as before the call.
  */
-int getAraryLengthLUA(lua_State *L,const char* array_name);
+int getAraryLengthLUA(const char* array_name);
 
 /*!
- *  Sets up a new LUA state and opens the default LUA libraries Also opens the complex numbers
- *  library. Runs the configuration script identified by the string filename_settings.
- *  Returns the LUA state.
+ *  Sets up a new LUA state and opens the default LUA librariesas well as the complex number
+ *  library.
  */
-lua_State *openConfigLUA(const char* filename_settings);
+void startLUA(void);
 
 /*!
- *  Parses, from the specified LUA state, the matrix data specified in the array identified
- *  by the input string array_name.
+ *  Closes the LUA state.
  */
-MatrixComponent *parseConfigMatrixLUA(lua_State *L, const char* array_name);
+void closeLUA(void);
+
+/*!
+ *  Runs the configuration script identified by filename.
+ */
+void parseConfigLUA(const char* filename);
+
+/*!
+ *  Returns the result of evaluating the m-th function of the 'matrix_name' component on the p-th
+ *  parameter value. 
+ *  
+ *  p and m are indexed from zero (C style rather than LUA style)
+ */
+double complex funcParamValue(const char* matrix_name, int p, int m);
+
+/*!
+ *  Parses and loads the matricies from the data files specified in LUA
+ */
+MatrixComponent *parseConfigMatrixLUA(const char* matrix_name);
 
 /*!
  *  Traverses the MatrixComponent struct and calls MatDestroy on each of the listed Mat's. After
- *  this it frees the entire MatrixComponent struct.
+ *  this, calls free() on the MatrixComponent struct.
  */
 void deleteMatrix(MatrixComponent *M);
-
-#define getNumberOfParameters(L) getAraryLengthLUA(L,LUA_array_parameters)
 
 #endif

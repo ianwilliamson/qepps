@@ -22,72 +22,27 @@
 #include "config.h"
 #include "log.h"
 
-static void assembleMatrix(lua_State *L, const char* matrix_key, Mat M, MatrixComponent *Mc, int p)
+static void assembleMatrix(const char* matrix_name, Mat M, MatrixComponent *Mc, int p)
 {
-  int Nelems;
-  p++; // LUA arrays are indexed from 1
+  int i;
   double complex value;
   
   MatZeroEntries(M);
   
-  lua_getglobal(L,LUA_array_parameters);
-  if ( !lua_istable(L,-1) )
-    logError("#! LUA: '%s' is not a table\n",LUA_array_parameters);
-  
-  lua_getglobal(L,LUA_table_matricies);
-  if ( !lua_istable(L,-1) )
-    logError("#! LUA: '%s' is not a table\n",LUA_table_matricies);
-  
-  lua_pushstring(L,matrix_key);
-  lua_gettable(L,-2);
-  if ( !lua_istable(L,-1) )
-    logError("#! LUA: '%s[%s]' is not a table\n",LUA_table_matricies,matrix_key);
-  
-  Nelems = lua_rawlen(L, -1);
-  if(Nelems % 2)
-    logError("#! LUA: Length of '%s[%s]' is odd\n",LUA_table_matricies,matrix_key);
-  
-  int nm=0; // Function index
-  int ne=1; // Element index
-  while(ne<=Nelems && nm < Mc->num)
+  for(i=0;i<Mc->num;i++)
   {
-    lua_rawgeti(L, -1, ne);
-    
-    if( lua_type(L,-1) == LUA_TFUNCTION) {
-      lua_rawgeti(L, -4, p); // get parameter value
-      lua_call(L, 1, 1); // call function
-        
-      value=returnComplexLUA(L); // read value
-      lua_pop(L,1); // remove read value
-        
-      MatAXPY( M, TO_PETSC_COMPLEX(value), Mc->matrix[nm], DIFFERENT_NONZERO_PATTERN );
-        
-      nm++;
-      ne++;
-    } else {
-      lua_pop(L,1);
-      ne++;
-    }
+    value=funcParamValue(matrix_name,p,i);
+    MatAXPY( M, TO_PETSC_COMPLEX(value), Mc->matrix[i], DIFFERENT_NONZERO_PATTERN );
   }
-  lua_pop(L,3); //pop all arrays 
   
   MatAssemblyBegin(M,MAT_FINAL_ASSEMBLY);
   MatAssemblyEnd(M,MAT_FINAL_ASSEMBLY);  
 }
 
-static void saveSolutionVector(lua_State *L, Vec *U, int p, int ev)
+void qeppsSweeper(void)
 {
-  PetscViewer viewer;
-  PetscViewerBinaryOpen(PETSC_COMM_WORLD,"vector.dat",FILE_MODE_WRITE,&viewer);
-  VecView(*U,viewer);
-  PetscViewerDestroy(&viewer);
-  VecDestroy(U);
-  return;
-}
-
-void qeppsSweeper(lua_State *L)
-{
-  PEP pep;       
+  PEP pep;  
+  ST st;     
   Vec Uout, Uinit;
   Mat E, D, K, A[3];
   PetscComplex lambda_solved;
@@ -101,9 +56,9 @@ void qeppsSweeper(lua_State *L)
   grvy_timer_begin("setup");
   
   // From LUA state, get and load matrix components
-  MatrixComponent *Ec = parseConfigMatrixLUA(L,LUA_key_matrix_E);
-  MatrixComponent *Dc = parseConfigMatrixLUA(L,LUA_key_matrix_D);
-  MatrixComponent *Kc = parseConfigMatrixLUA(L,LUA_key_matrix_K);
+  MatrixComponent *Ec = parseConfigMatrixLUA(LUA_key_matrix_E);
+  MatrixComponent *Dc = parseConfigMatrixLUA(LUA_key_matrix_D);
+  MatrixComponent *Kc = parseConfigMatrixLUA(LUA_key_matrix_K);
   
   // Initialize total matricies
   // (we scale/sum the component matricies from the previous step into these)
@@ -120,26 +75,30 @@ void qeppsSweeper(lua_State *L)
   MatDuplicate(Kc->matrix[0],MAT_SHARE_NONZERO_PATTERN,&K);
   
   // Get the target eigenvalue from the LUA state
-  lambda_tgt = getOptComplexLUA(L,"lambda_tgt",1);
+  lambda_tgt = getOptComplexLUA("lambda_tgt",1);
   logOutput("# lambda_tgt set to %.3f%+.3fj\n",creal(lambda_tgt),cimag(lambda_tgt));
   
   // Initialize the solver
   A[0]=K; A[1]=D; A[2]=E;
   PEPCreate(PETSC_COMM_WORLD,&pep);
   PEPSetProblemType(pep,PEP_GENERAL);
+  PEPGetST(pep,&st);
+  STSetTransform(st,1);
+  STSetType(st,STSINVERT);
+  
   PEPSetFromOptions(pep);
   
-  logOutput("# Sweeping %d parameters\n", getNumberOfParameters(L));
+  logOutput("# Sweeping %d parameters\n", getNumberOfParameters());
   grvy_timer_end("setup");
-  for (p=0; p < getNumberOfParameters(L); p++)
+  for (p=0; p < getNumberOfParameters(); p++)
   {
     grvy_timer_begin("iteration");
     
-    logOutput("%E", getParameterValue(L,p) );
+    logOutput("%E", getParameterValue(p) );
     
-    assembleMatrix(L,LUA_key_matrix_E,E,Ec,p);
-    assembleMatrix(L,LUA_key_matrix_D,D,Dc,p);
-    assembleMatrix(L,LUA_key_matrix_K,K,Kc,p);
+    assembleMatrix(LUA_key_matrix_E,E,Ec,p);
+    assembleMatrix(LUA_key_matrix_D,D,Dc,p);
+    assembleMatrix(LUA_key_matrix_K,K,Kc,p);
     
     MatGetVecs(E,&Uout,NULL);
     MatGetVecs(E,&Uinit,NULL);
@@ -156,21 +115,21 @@ void qeppsSweeper(lua_State *L)
       
       if(ev==0) // Leading eigenvalue/eigenvector (should be closest to target)
       {
-        if( getOptBooleanLUA(L,"update_lambda_tgt", false) )
+        if( getOptBooleanLUA("update_lambda_tgt", false) )
         {
           lambda_tgt = TO_DOUBLE_COMPLEX(lambda_solved);
         }
-        if( getOptBooleanLUA(L,"update_initspace", false) )
+        if( getOptBooleanLUA("update_initspace", false) )
         {
           VecCopy(Uout,Uinit);
           PEPSetInitialSpace(pep,1,&Uinit);
         }
       }
-      if( getOptBooleanLUA(L,"save_solutions", false) )
+      if( getOptBooleanLUA("save_solutions", false) )
       {
         char filename[PETSC_MAX_PATH_LEN];
-        char *output_dir = getOptStringLUA(L,"output_dir","./");
-        sprintf(filename,"%s/U_%E_%i.dat",output_dir,creal( getParameterValue(L,p) ),ev);
+        char *output_dir = getOptStringLUA("output_dir","./");
+        sprintf(filename,"%s/U_%E_%i.dat",output_dir,creal( getParameterValue(p) ),ev);
         free(output_dir);
         grvy_check_file_path(filename);
         PetscViewerBinaryOpen(PETSC_COMM_WORLD,filename,FILE_MODE_WRITE,&viewer);
@@ -200,7 +159,7 @@ void qeppsSweeper(lua_State *L)
   
   grvy_timer_finalize();
   
-  if( getOptBooleanLUA(L,"print_timing",false) )
+  if( getOptBooleanLUA("print_timing",false) )
   {
     logOutput("# \n");
     logOutput("# total time: %10.5E secs\n",grvy_timer_elapsed_global());

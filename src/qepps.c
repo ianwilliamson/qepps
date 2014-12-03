@@ -29,20 +29,21 @@ int main(int argc,char **argv)
   char filename[PETSC_MAX_PATH_LEN];
   SlepcInitialize(&argc,&argv,(char*)0,help);
   
-  /* Load configuration */
+  /* Start LUA state and load configuration */
+  startLUA();
   PetscOptionsGetString(NULL,"-lua",filename,PETSC_MAX_PATH_LEN,NULL);
-  lua_State *L = openConfigLUA(filename);
+  parseConfigLUA(filename);
   
   /* Setup the log file */
-  char *output_file = getOptStringLUA(L,"output_log","./output.txt");
+  char *output_file = getOptStringLUA("output_log","./output.txt");
   logOpen(output_file);
   free(output_file);
   
   /* Run parameter sweep */
-  qeppsSweeper(L);
+  qeppsSweeper();
   
   /* Close out */
-  lua_close(L);
+  closeLUA();
   logClose();
   SlepcFinalize();
    

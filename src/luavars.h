@@ -25,4 +25,7 @@
 #define LUA_key_matrix_D "D"
 #define LUA_key_matrix_K "K"
 
+#define LUA_subkey_data "data"
+#define LUA_subkey_func "func"
+
 #endif

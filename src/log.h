@@ -19,7 +19,7 @@
 
 void logError(const char *format, ...);
 void logOutput(char *format, ...);
-void logStart(const char *filename);
-void logEnd(void);
+void logOpen(const char *filename);
+void logClose(void);
 
 #endif

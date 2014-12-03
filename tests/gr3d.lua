@@ -1,17 +1,18 @@
 j=complex.I -- For convenience 
 
--- Parameter values to sweep
+-- Parameter values
 parameters = {}
 for param = 4E12, 8E12, 0.25E12 do   parameters[#parameters+1] = param   end
 
--- Software Options
-options = {    lambda_tgt = 49.14-6.18*j, --Initial target for eigenvalue
-               output_dir = os.getenv("WORK").."/data_gr3d_base", --
-        update_lambda_tgt = true, --Should the eigenvalue target be updated after each parameter value
-         update_initspace = false, --For each param value, should the solver's init vector space be updated  with the solution from the previous param value
-           save_solutions = false, --Should the solution vectors be saved for every parameter value
-             print_timing = true
-           }
+-- Options
+options = {}
+options["lambda_tgt"] = 49.14-6.18*j --Initial target for eigenvalue
+options["output_dir"] = os.getenv("WORK").."/data_gr3d_base" --Location to save solution vectors
+options["output_log"] = options["output_dir"].."/output.txt" --File in which qepps (text) output will be saved
+options["update_lambda_tgt"] = true --Update target eigenvalue from eigenvalue solved at previous parameter value
+options["update_initspace"] = true --Update solver space from solution vector of previous parameter value
+options["save_solutions"] = false --Save the solution vector for each parameter value
+options["print_timing"] = true --At conclusion of parameter sweep, print timing
 
 -- Scaling functions
 function p0(x)   return x^0   end
@@ -34,10 +35,10 @@ function pS(x)
 end
 
 -- Data files
-matricies = {}
-matricies["E"] = {options["output_dir"].."/E2.dat",p2}
-matricies["D"] = {options["output_dir"].."/D1.dat",p1}
-matricies["K"] = {options["output_dir"].."/K0.dat",p0,
-                  options["output_dir"].."/K2.dat",p2,
-                  options["output_dir"].."/Ks.dat",pS}
-
+matricies = {E={},D={},K={}}
+matricies.E.data = {options["output_dir"].."/E2.dat"}
+matricies.E.func = {p2}
+matricies.D.data = {options["output_dir"].."/D1.dat"}
+matricies.D.func = {p1}
+matricies.K.data = {options["output_dir"].."/K0.dat",options["output_dir"].."/K2.dat",options["output_dir"].."/Ks.dat"}
+matricies.K.func = {p0,p2,pS}
