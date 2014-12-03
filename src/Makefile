@@ -19,7 +19,7 @@ CFLAGS=-O2 $(LUA_INC) $(WARN) -I$(GRVY_INC)
 
 include $(SLEPC_DIR)/conf/slepc_common
 
-SRC_FILES=sweeper.c lcomplex.c config.c
+SRC_FILES=sweeper.c lcomplex.c config.c log.c
 OBJ_FILES=$(SRC_FILES:%.c=%.o)
 
 all: qepps
