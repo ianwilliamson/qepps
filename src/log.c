@@ -16,6 +16,7 @@
 
 #include <grvy.h>
 #include <slepcsys.h>
+#include <stdio.h>
 #include "types.h"
 
 static FILE *fp=NULL;
@@ -38,6 +39,7 @@ void logError(const char *format, ...)
     {
       va_start(args,format);
       vfprintf(fp,format,args);
+      fflush(fp);
       fclose(fp);
       fp=NULL;
     }
@@ -57,6 +59,7 @@ void logOutput(const char *format, ...)
     {
       va_start(args,format);
       vfprintf(fp,format,args);
+      fflush(fp);
     }
     va_end(args);
   }
