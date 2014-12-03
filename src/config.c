@@ -22,16 +22,7 @@
 #include "types.h"
 #include "luavars.h"
 #include "lcomplex.h"
-
-static void error(lua_State *L, const char *fmt, ...)
-{
-	va_list argp;
-	va_start(argp, fmt);
-	vfprintf(stderr, fmt, argp);
-	va_end(argp);
-	lua_close(L);
-	exit(EXIT_FAILURE);
-}
+#include "log.h"
 
 double complex returnComplexLUA(lua_State *L)
 {
@@ -41,14 +32,15 @@ double complex returnComplexLUA(lua_State *L)
   else if( lua_type(L,-1) == LUA_TUSERDATA )
     result=*( (double complex *)lua_touserdata(L,-1) );
   else
-    error(L,"#! LUA: Requested option is not of type 'double complex'\n");
+    logError("#! LUA: Requested option is not of type 'double complex'\n");
   return result;
 }
 
 static void pullFromTableLUA(lua_State *L,const char *table,const char *option)
 {
   lua_getglobal(L,table);
-  if (!lua_istable(L, -1)) error(L, "#! LUA: '%s' is not a table\n", lua_tostring(L, -1));
+  if (!lua_istable(L, -1))
+    logError("#! LUA: '%s' is not a table\n", lua_tostring(L, -1));
   lua_pushstring(L, option);
   lua_gettable(L, -2);
 }
@@ -57,7 +49,8 @@ static void pullFromArrayLUA(lua_State *L,const char *array,int index)
 {
   index++; // LUA is 1-indexed
   lua_getglobal(L,array);
-  if (!lua_istable(L, -1)) error(L, "#! LUA: '%s' is not an array\n", lua_tostring(L, -1));
+  if (!lua_istable(L, -1))
+    logError("#! LUA: '%s' is not an array\n", lua_tostring(L, -1));
   lua_rawgeti(L, -1, index);
 }
 
@@ -70,32 +63,51 @@ double complex getParameterValue(lua_State *L,int index)
   return result;
 }
 
-char *getOptStringLUA(lua_State *L,const char *option)
+char *getOptStringLUA(lua_State *L,const char *option,const char *default_value)
 {
   char *result;
   pullFromTableLUA(L,LUA_array_options,option);
-  if (!lua_isstring(L, -1)) error(L,"#! LUA: '%s[%s]' is not a string\n",LUA_array_options,option);
-  result=strdup( lua_tostring(L,-1) );
-  lua_pop(L,2);
+  if (lua_isstring(L, -1)) {
+    result=strdup(lua_tostring(L,-1));
+    lua_pop(L,2); //pop string and table
+  } else {
+    result=strdup(default_value);
+    logOutput("# LUA: '%s[%s]' is not a string, using default: %s\n",LUA_array_options,option,default_value);
+    lua_pop(L,1); //pop table
+  }
   return result;
 }
 
-bool getOptBooleanLUA(lua_State *L,const char *option)
+bool getOptBooleanLUA(lua_State *L,const char *option, bool default_value)
 {
   bool result;
   pullFromTableLUA(L,LUA_array_options,option);
-  if (!lua_isboolean(L, -1)) error(L,"#! LUA: '%s[%s]' is not a boolean\n",LUA_array_options,option);
-  result=lua_toboolean(L,-1);
-  lua_pop(L,2);
+  if (lua_isboolean(L, -1)) {
+    result=lua_toboolean(L,-1);
+    lua_pop(L,2); //pop boolean and table
+  } else {
+    result=default_value;
+    logOutput("# LUA: '%s[%s]' is not a boolean, using default: %i \n",LUA_array_options,option,default_value);
+    lua_pop(L,1); //pop table
+  }
   return result;
 }
 
-double complex getOptComplexLUA(lua_State *L,const char *option)
+double complex getOptComplexLUA(lua_State *L,const char *option,double complex default_value)
 {
   double complex result;
   pullFromTableLUA(L,LUA_array_options,option);
-  result=returnComplexLUA(L);
-  lua_pop(L,2);
+  if ( lua_type(L,-1) == LUA_TNUMBER ) {
+    result=lua_tonumber(L,-1)+I*0;
+    lua_pop(L,2); //pop value and table
+  } else if( lua_type(L,-1) == LUA_TUSERDATA ) {
+    result=*( (double complex *)lua_touserdata(L,-1) );
+    lua_pop(L,2); //pop value and table
+  } else {
+    result=default_value;
+    logOutput("# LUA: '%s[%s]' is not a double complex, using default: %f%+fj\n",creal(result),cimag(result));
+    lua_pop(L,1); //pop table
+  }
   return result;
 }
 
@@ -113,18 +125,11 @@ lua_State *openConfigLUA(const char* filename_settings)
   L=luaL_newstate();
   luaL_openlibs(L);
   luaL_requiref(L, "complex", &luaopen_complex, 1);
-  //luaopen_complex(L);
-  //lua_rawseti(L,LUA_REGISTRYINDEX,LUA_RIDX_GLOBALS);
-  //lua_settop(L,0);
-  //lua_pushnil(L);
   
-  if ( luaL_dofile(L, filename_settings) ) {
-    error(L, "#! Error with configuration file: %s", lua_tostring(L, -1));
-    exit(1);
-  }
-  
-  PetscPrintf(PETSC_COMM_WORLD,"# Parsed configuration from from '%s'\n",filename_settings);
-  
+  if ( luaL_dofile(L, filename_settings) )
+    logError("#! Error with configuration file: %s", lua_tostring(L, -1));
+    /* Use basic error handling as the logger isn't setup at this point */
+
   return L;
 }
 
@@ -137,21 +142,21 @@ MatrixComponent *parseConfigMatrixLUA(lua_State *L, const char* matrix_key)
   
   lua_getglobal(L,LUA_table_matricies);
   if ( !lua_istable(L,-1) )
-    error(L,"#! LUA: '%s' is not a table\n",LUA_table_matricies);
+    logError("#! LUA: '%s' is not a table\n",LUA_table_matricies);
   
   lua_pushstring(L,matrix_key);
   lua_gettable(L,-2);
   if ( !lua_istable(L,-1) )
-    error(L,"#! LUA: '%s[%s]' is not a table\n",LUA_table_matricies,matrix_key);
+    logError("#! LUA: '%s[%s]' is not a table\n",LUA_table_matricies,matrix_key);
     
   Nelems = lua_rawlen(L, -1);
   if(Nelems % 2)
-    error(L,"#! LUA: Length of '%s[%s]' is odd\n",LUA_table_matricies,matrix_key);
+    logError("#! LUA: Length of '%s[%s]' is odd\n",LUA_table_matricies,matrix_key);
   
   Nmats = Nelems/2;
   MatrixComponent *M = malloc( MATRIX_COMPONENT_SIZE(Nmats) );
   if (M==NULL)
-    error(L,"#! Allocation of MatrixComponent container specified by '%s[%s]' failed\n",LUA_table_matricies,matrix_key);
+    logError("#! Allocation of MatrixComponent container specified by '%s[%s]' failed\n",LUA_table_matricies,matrix_key);
   M->num = Nmats;
   
   nm=0; // Matrix index
@@ -170,7 +175,7 @@ MatrixComponent *parseConfigMatrixLUA(lua_State *L, const char* matrix_key)
       PetscViewerDestroy( &viewer );
       
       MatGetSize(M->matrix[nm],&m,&n);
-      PetscPrintf(PETSC_COMM_WORLD,"# %dx%d matrix loaded from '%s'\n",m,n,filename);
+      logOutput("# %dx%d matrix loaded from '%s'\n",m,n,filename);
       lua_pop(L,1);
       nm++;
       ne++;
@@ -186,7 +191,7 @@ MatrixComponent *parseConfigMatrixLUA(lua_State *L, const char* matrix_key)
   lua_pop(L,2);
 
   if ( nf != nm ) // We must have a scaling function for each matrix that we've loaded
-    error(L,"#! LUA: Mismatch in the number of functions and datafiles specified in '%s[%s]'\n",LUA_table_matricies,matrix_key);
+    logError("#! LUA: Mismatch in the number of functions and datafiles specified in '%s[%s]'\n",LUA_table_matricies,matrix_key);
   
   return M;
 }

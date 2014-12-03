@@ -27,17 +27,17 @@ double complex getParameterValue(lua_State *L,int index);
  *  Returns a string from the QEPPS options table in the LUA state
  *  Note that free() must be called
  */
-char *getOptStringLUA(lua_State *L,const char *option);
+char *getOptStringLUA(lua_State *L,const char *option,const char *default_value);
 
 /*! 
  *  Returns a bolean from the QEPPS options table in the LUA state
  */
-bool getOptBooleanLUA(lua_State *L,const char *option);
+bool getOptBooleanLUA(lua_State *L,const char *option, bool default_value);
 
 /*! 
  *  Returns a complex double from the QEPPS options table in the LUA state
  */
-double complex getOptComplexLUA(lua_State *L,const char *option);
+double complex getOptComplexLUA(lua_State *L,const char *option,double complex default_value);
 
 /*!
  *  Returns the most recently pushed variable on the LUA stack as a complex double data type.

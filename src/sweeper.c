@@ -16,13 +16,11 @@
 
 #include <lua.h>
 #include <slepcpep.h>
-#include <unistd.h>
 #include <grvy.h>
-#include <sys/time.h>
-#include <time.h>
 #include "types.h"
 #include "luavars.h"
 #include "config.h"
+#include "log.h"
 
 static void assembleMatrix(lua_State *L, const char* matrix_key, Mat M, MatrixComponent *Mc, int p)
 {
@@ -34,20 +32,20 @@ static void assembleMatrix(lua_State *L, const char* matrix_key, Mat M, MatrixCo
   
   lua_getglobal(L,LUA_array_parameters);
   if ( !lua_istable(L,-1) )
-    error(L,"#! LUA: '%s' is not a table\n",LUA_array_parameters);
+    logError("#! LUA: '%s' is not a table\n",LUA_array_parameters);
   
   lua_getglobal(L,LUA_table_matricies);
   if ( !lua_istable(L,-1) )
-    error(L,"#! LUA: '%s' is not a table\n",LUA_table_matricies);
+    logError("#! LUA: '%s' is not a table\n",LUA_table_matricies);
   
   lua_pushstring(L,matrix_key);
   lua_gettable(L,-2);
   if ( !lua_istable(L,-1) )
-    error(L,"#! LUA: '%s[%s]' is not a table\n",LUA_table_matricies,matrix_key);
+    logError("#! LUA: '%s[%s]' is not a table\n",LUA_table_matricies,matrix_key);
   
   Nelems = lua_rawlen(L, -1);
   if(Nelems % 2)
-    error(L,"#! LUA: Length of '%s[%s]' is odd\n",LUA_table_matricies,matrix_key);
+    logError("#! LUA: Length of '%s[%s]' is odd\n",LUA_table_matricies,matrix_key);
   
   int nm=0; // Function index
   int ne=1; // Element index
@@ -77,20 +75,25 @@ static void assembleMatrix(lua_State *L, const char* matrix_key, Mat M, MatrixCo
   MatAssemblyEnd(M,MAT_FINAL_ASSEMBLY);  
 }
 
-static void saveSolutionVector(lua_State *L, Vec U, int p, int ev)
+static void saveSolutionVector(lua_State *L, Vec *U, int p, int ev)
 {
+  PetscViewer viewer;
+  PetscViewerBinaryOpen(PETSC_COMM_WORLD,"vector.dat",FILE_MODE_WRITE,&viewer);
+  VecView(*U,viewer);
+  PetscViewerDestroy(&viewer);
+  VecDestroy(U);
   return;
 }
 
 void qeppsSweeper(lua_State *L)
 {
   PEP pep;       
-  Vec U;
+  Vec Uout, Uinit;
   Mat E, D, K, A[3];
   PetscComplex lambda_solved;
   PetscReal    error, tol;
   PetscInt     i, ev, nConverged, maxIterations, nIterations;
-  PetscMPIInt  rank;
+  PetscViewer  viewer;
   int p;
   double complex lambda_tgt;
   
@@ -117,8 +120,8 @@ void qeppsSweeper(lua_State *L)
   MatDuplicate(Kc->matrix[0],MAT_SHARE_NONZERO_PATTERN,&K);
   
   // Get the target eigenvalue from the LUA state
-  lambda_tgt = getOptComplexLUA(L,"lambda_tgt");
-  PetscPrintf(PETSC_COMM_WORLD,"# lambda_tgt set to %.3f%+.3fj\n",creal(lambda_tgt),cimag(lambda_tgt));
+  lambda_tgt = getOptComplexLUA(L,"lambda_tgt",1);
+  logOutput("# lambda_tgt set to %.3f%+.3fj\n",creal(lambda_tgt),cimag(lambda_tgt));
   
   // Initialize the solver
   A[0]=K; A[1]=D; A[2]=E;
@@ -126,51 +129,59 @@ void qeppsSweeper(lua_State *L)
   PEPSetProblemType(pep,PEP_GENERAL);
   PEPSetFromOptions(pep);
   
-  PetscPrintf(PETSC_COMM_WORLD,"# Sweeping %d parameters\n", getNumberOfParameters(L));
+  logOutput("# Sweeping %d parameters\n", getNumberOfParameters(L));
   grvy_timer_end("setup");
   for (p=0; p < getNumberOfParameters(L); p++)
   {
     grvy_timer_begin("iteration");
     
-    PetscPrintf(PETSC_COMM_WORLD,"%E", getParameterValue(L,p) );
+    logOutput("%E", getParameterValue(L,p) );
     
     assembleMatrix(L,LUA_key_matrix_E,E,Ec,p);
     assembleMatrix(L,LUA_key_matrix_D,D,Dc,p);
     assembleMatrix(L,LUA_key_matrix_K,K,Kc,p);
+    
+    MatGetVecs(E,&Uout,NULL);
+    MatGetVecs(E,&Uinit,NULL);
     
     PEPSetOperators(pep,3,A);
     PEPSetTarget(pep,TO_PETSC_COMPLEX(lambda_tgt));
     PEPSolve(pep);
     PEPGetConverged(pep,&nConverged);
     
-    if(nConverged >= 1)
+    for (ev=0; ev<nConverged; ev++)
     {
-      for (ev=0; ev<nConverged; ev++)
+      PEPGetEigenpair( pep, ev, &lambda_solved, NULL, Uout, NULL );
+      logOutput(", %.3f%+.3fj",PetscRealPart(lambda_solved),PetscImaginaryPart(lambda_solved));
+      
+      if(ev==0) // Leading eigenvalue/eigenvector (should be closest to target)
       {
-        if( getOptBooleanLUA(L,"save_solutions") || getOptBooleanLUA(L,"update_initspace") )
-          PEPGetEigenpair( pep, ev, &lambda_solved, NULL, U, NULL );
-        else
-          PEPGetEigenpair( pep, ev, &lambda_solved, NULL, NULL, NULL );
-        
-        PetscPrintf(PETSC_COMM_WORLD,", %.3f%+.3fj",PetscRealPart(lambda_solved),PetscImaginaryPart(lambda_solved));
-        
-        if(ev==0)
+        if( getOptBooleanLUA(L,"update_lambda_tgt", false) )
         {
-          if( getOptBooleanLUA(L,"update_lambda_tgt") )
-            lambda_tgt = TO_DOUBLE_COMPLEX(lambda_solved);
-          if( getOptBooleanLUA(L,"update_initspace") )
-            PEPSetInitialSpace(pep,1,&U);
-          if( getOptBooleanLUA(L,"save_solutions") )
-            saveSolutionVector(L,U,p,ev);
+          lambda_tgt = TO_DOUBLE_COMPLEX(lambda_solved);
         }
-      } // loop converged
+        if( getOptBooleanLUA(L,"update_initspace", false) )
+        {
+          VecCopy(Uout,Uinit);
+          PEPSetInitialSpace(pep,1,&Uinit);
+        }
+      }
+      if( getOptBooleanLUA(L,"save_solutions", false) )
+      {
+        char filename[PETSC_MAX_PATH_LEN];
+        char *output_dir = getOptStringLUA(L,"output_dir","./");
+        sprintf(filename,"%s/U_%E_%i.dat",output_dir,creal( getParameterValue(L,p) ),ev);
+        free(output_dir);
+        grvy_check_file_path(filename);
+        PetscViewerBinaryOpen(PETSC_COMM_WORLD,filename,FILE_MODE_WRITE,&viewer);
+        VecView(Uout,viewer);
+        PetscViewerDestroy(&viewer);
+      }
     }
-    else
-    {
-      PetscPrintf(PETSC_COMM_WORLD,"\n");
-      break; // Stop sweeping if we don't solve for any eigenvalues.
-    }
-    PetscPrintf(PETSC_COMM_WORLD,"\n");
+    logOutput("\n");
+    
+    if(nConverged==0)
+      logError("#! Solver did not converge. Aborting...\n");
     
     grvy_timer_end("iteration");
   } // loop parameters
@@ -183,24 +194,25 @@ void qeppsSweeper(lua_State *L)
   deleteMatrix(Ec);
   deleteMatrix(Dc);
   deleteMatrix(Kc);
+  VecDestroy(&Uout);
+  VecDestroy(&Uinit);
   grvy_timer_end("clean");
   
   grvy_timer_finalize();
   
-  MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
-  if( getOptBooleanLUA(L,"print_timing") && !rank )
+  if( getOptBooleanLUA(L,"print_timing",false) )
   {
-    printf("# \n");
-    printf("# total time: %10.5E secs\n",grvy_timer_elapsed_global());
-    printf("# \n");
-    printf("#      setup: %10.5E secs\n",grvy_timer_elapsedseconds("setup"));
-    printf("#  iteration: %10.5E secs\n",grvy_timer_elapsedseconds("iteration"));
-    printf("#      clean: %10.5E secs\n",grvy_timer_elapsedseconds("clean"));
-    printf("# \n");
-    printf("# iteration (   count): %i\n",grvy_timer_stats_count("iteration"));
-    printf("# iteration (    mean): %E secs\n",grvy_timer_stats_mean("iteration"));
-    printf("# iteration (variance): %E secs\n",grvy_timer_stats_variance("iteration"));
-    printf("# iteration (     min): %E secs\n",grvy_timer_stats_min("iteration"));
-    printf("# iteration (     max): %E secs\n",grvy_timer_stats_max("iteration"));
+    logOutput("# \n");
+    logOutput("# total time: %10.5E secs\n",grvy_timer_elapsed_global());
+    logOutput("# \n");
+    logOutput("#      setup: %10.5E secs\n",grvy_timer_elapsedseconds("setup"));
+    logOutput("#  iteration: %10.5E secs\n",grvy_timer_elapsedseconds("iteration"));
+    logOutput("#      clean: %10.5E secs\n",grvy_timer_elapsedseconds("clean"));
+    logOutput("# \n");
+    logOutput("# iteration (   count): %i\n",grvy_timer_stats_count("iteration"));
+    logOutput("# iteration (    mean): %E secs\n",grvy_timer_stats_mean("iteration"));
+    logOutput("# iteration (variance): %E secs\n",grvy_timer_stats_variance("iteration"));
+    logOutput("# iteration (     min): %E secs\n",grvy_timer_stats_min("iteration"));
+    logOutput("# iteration (     max): %E secs\n",grvy_timer_stats_max("iteration"));
   }
 }
