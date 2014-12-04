@@ -17,7 +17,7 @@ where E, D, and K are matrices, U is the eigenvector, and λ is the eigenvalue. 
 
 In the context of electromagnetics/optics, this parameter to be swept most commonly corresponds to the frequency (equivalently wavelength or color). Sweeping frequency allows for the broadband dispersion of the structure’s mode(s) to be obtained. This is useful for photonic band gap engineering, signal attenuation characterization, and group velocity analysis. 
 
-It would be highly impractical to generate and upload the full E, D, and K matricies for every frequency value of interest, so these matricies will be componentized. This is made possible by a feature of Comsol that was not previously mentioned. Comsol allows the underlying weak form (i.e. the differential equations that are being solved) to be modified. Typically this feature is used to specify some custom physics that isn’t prepackaged by Comsol, but in our case, we use it to factor out the frequency from the various terms in Maxwell’s equations.
+It would be highly impractical to generate and upload the full E, D, and K matrices for every frequency value of interest, so these matrices will be componentized. This is made possible by a feature of Comsol that was not previously mentioned. Comsol allows the underlying weak form (i.e. the differential equations that are being solved) to be modified. Typically this feature is used to specify some custom physics that isn’t prepackaged by Comsol, but in our case, we use it to factor out the frequency from the various terms in Maxwell’s equations.
 
 Implementation
 ------------------------------------
@@ -31,4 +31,4 @@ D = D0*d0(f) + D1*d1(f) + D2*d2(f) + ...
 
 K = K0*k0(f) + K1*k1(f) + K2*k2(f) + ...
 
-where Ei, Di, and Ki are component matricies and ei(f), di(f), and ki(f) are arbitrary functions of the sweep parameter. The LUA interpreter handles all function evaluation, eliminating the need to handle string math expression parsing in the compiled code.
+where Ei, Di, and Ki are component matrices and ei(f), di(f), and ki(f) are arbitrary functions of the sweep parameter. The LUA interpreter handles all function evaluation, eliminating the need to handle string math expression parsing in the compiled code.
