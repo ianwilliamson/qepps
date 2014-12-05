@@ -1,5 +1,10 @@
+=====================================================
 QEPPS: Quadratic eigenvalue problem parameter sweeper
-============================================================
+=====================================================
+
+:Author:       Ian Williamson
+:Organization: Microelectronics Research Center, Electrical and Computer Engineering, The University of Texas at Austin
+:Contact:      ian.williamson@utexas.edu
 
 Background
 ------------------------------------
