@@ -49,6 +49,12 @@ bool getOptBooleanLUA(const char *option, bool default_value);
 double complex getOptComplexLUA(const char *option,double complex default_value);
 
 /*! 
+ *  Returns an int from the QEPPS options table in the LUA state, returns default_value
+ *  if option is not defined
+ */
+int getOptIntLUA(const char *option,int default_value);
+
+/*! 
  *  Returns the length of the LUA array identified by the string array_name. Pushes and pops
  *  from the stack so the stack should be in the same state as before the call.
  */

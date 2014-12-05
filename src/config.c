@@ -119,6 +119,21 @@ double complex getOptComplexLUA(const char *option,double complex default_value)
   return result;
 }
 
+int getOptIntLUA(const char *option,int default_value)
+{
+  int result;
+  pullFromTableLUA(LUA_array_options,option);
+  if ( lua_type(L,-1) == LUA_TNUMBER ) {
+    result=lua_tonumber(L,-1);
+    lua_pop(L,2); //pop value and table
+  } else {
+    result=default_value;
+    logOutput("# LUA: '%s[%s]' is not an int, using default: %i\n",result);
+    lua_pop(L,1); //pop table
+  }
+  return result;
+}
+
 int getAraryLengthLUA(const char* array_name)
 {
   lua_getglobal(L,array_name);
