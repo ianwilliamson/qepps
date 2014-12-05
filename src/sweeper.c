@@ -85,7 +85,7 @@ void qeppsSweeper(void)
   PEPGetST(pep,&st);
   STSetTransform(st,1);
   STSetType(st,STSINVERT);
-  
+  PEPSetDimensions(pep,getOptIntLUA("nev",1),PETSC_DEFAULT,PETSC_DEFAULT);
   PEPSetFromOptions(pep);
   
   logOutput("# Sweeping %d parameters\n", getNumberOfParameters());
