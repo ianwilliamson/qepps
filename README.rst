@@ -2,7 +2,7 @@
 QEPPS: Quadratic eigenvalue problem parameter sweeper
 =====================================================
 
-:Author:       Ian Williamson, ian.williamson@utexas.edu
+:Author:       Ian Williamson <ian.williamson@utexas.edu>
 :Organization: Microelectronics Research Center, The University of Texas at Austin    
 
 
@@ -15,7 +15,7 @@ Motivation
 ----------
 Modal studies in electromagnetics are quadratic eigenvalue problems. This means that they can be represented as::
 
-   (λ^2 * E + λ * D + K)*U = 0
+   (λ^2*E + λ*D + K)*U = 0
 
 where E, D, and K are matrices, U is the eigenvector, and λ is the eigenvalue. Physically, U corresponds to the electric or magnetic field distribution over the discretized domain, with each element corresponding to one of the field components at a location within the 2D or 3D mesh. The eigenvalue, λ, corresponds to either the mode's guided effective index (in waveguides) or to the bloch wave vector in photonic crystals and other periodic geometries.
 
