@@ -88,7 +88,9 @@ void qeppsSweeper(void)
   PEPSetDimensions(pep,getOptIntLUA("nev",1),PETSC_DEFAULT,PETSC_DEFAULT);
   PEPSetFromOptions(pep);
   
-  logOutput("# Sweeping %d parameters\n", getNumberOfParameters());
+  MPI_Comm_size(PETSC_COMM_WORLD,&p); 
+  logOutput("# MPI_Comm_size = %i \n", p);
+  logOutput("# Number of parameters = %i \n", getNumberOfParameters());
   grvy_timer_end("setup");
   for (p=0; p < getNumberOfParameters(); p++)
   {
