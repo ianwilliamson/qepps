@@ -94,8 +94,6 @@ void qeppsSweeper(void)
   grvy_timer_end("setup");
   for (p=0; p < getNumberOfParameters(); p++)
   {
-    grvy_timer_begin("iteration");
-    
     grvy_timer_begin("assemble");
     logOutput("%E", getParameterValue(p) );
     
@@ -150,8 +148,6 @@ void qeppsSweeper(void)
     if(nConverged==0)
       logError("#! Solver did not converge. Aborting...\n");
     grvy_timer_end("postprocess");
-    
-    grvy_timer_end("iteration");
   } // loop parameters
   
   grvy_timer_begin("clean");
@@ -175,17 +171,10 @@ void qeppsSweeper(void)
     logOutput("# total time: %10.5E secs\n",grvy_timer_elapsed_global());
     logOutput("# ------------------------------------------------\n");
     logOutput("#      setup: %10.5E secs\n",grvy_timer_elapsedseconds("setup"));
-    logOutput("#  iteration: %10.5E secs\n",grvy_timer_elapsedseconds("iteration"));
     logOutput("#   assemble: %10.5E secs\n",grvy_timer_elapsedseconds("assemble"));
     logOutput("#      solve: %10.5E secs\n",grvy_timer_elapsedseconds("solve"));
     logOutput("#   postproc: %10.5E secs\n",grvy_timer_elapsedseconds("postprocess"));
     logOutput("#      clean: %10.5E secs\n",grvy_timer_elapsedseconds("clean"));
-    logOutput("# ------------------------------------------------\n");
-    logOutput("# iteration (   count): %i\n",     grvy_timer_stats_count("iteration"));
-    logOutput("# iteration (    mean): %E secs\n",grvy_timer_stats_mean("iteration"));
-    logOutput("# iteration (variance): %E secs\n",grvy_timer_stats_variance("iteration"));
-    logOutput("# iteration (     min): %E secs\n",grvy_timer_stats_min("iteration"));
-    logOutput("# iteration (     max): %E secs\n",grvy_timer_stats_max("iteration"));
     logOutput("# ------------------------------------------------\n");    
     logOutput("# assemble  (   count): %i\n",     grvy_timer_stats_count("assemble"));
     logOutput("# assemble  (    mean): %E secs\n",grvy_timer_stats_mean("assemble"));
