@@ -197,11 +197,11 @@ void qeppsSweeper(void)
     logOutput("# solve     (variance): %E secs\n",grvy_timer_stats_variance("solve"));
     logOutput("# solve     (     min): %E secs\n",grvy_timer_stats_min("solve"));
     logOutput("# solve     (     max): %E secs\n",grvy_timer_stats_max("solve"));
-    logOutput("# postproc  (   count): %i\n",     grvy_timer_stats_count("postproc"));
-    logOutput("# postproc  (    mean): %E secs\n",grvy_timer_stats_mean("postproc"));
-    logOutput("# postproc  (variance): %E secs\n",grvy_timer_stats_variance("postproc"));
-    logOutput("# postproc  (     min): %E secs\n",grvy_timer_stats_min("postproc"));
-    logOutput("# postproc  (     max): %E secs\n",grvy_timer_stats_max("postproc"));    
+    logOutput("# postproc  (   count): %i\n",     grvy_timer_stats_count("postprocess"));
+    logOutput("# postproc  (    mean): %E secs\n",grvy_timer_stats_mean("postprocess"));
+    logOutput("# postproc  (variance): %E secs\n",grvy_timer_stats_variance("postprocess"));
+    logOutput("# postproc  (     min): %E secs\n",grvy_timer_stats_min("postprocess"));
+    logOutput("# postproc  (     max): %E secs\n",grvy_timer_stats_max("postprocess"));    
     logOutput("# ================================================\n");
     logOutput("# ================================================\n");
   }
