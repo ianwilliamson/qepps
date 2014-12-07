@@ -96,6 +96,7 @@ void qeppsSweeper(void)
   {
     grvy_timer_begin("iteration");
     
+    grvy_timer_begin("assemble");
     logOutput("%E", getParameterValue(p) );
     
     assembleMatrix(LUA_key_matrix_E,E,Ec,p);
@@ -107,9 +108,14 @@ void qeppsSweeper(void)
     
     PEPSetOperators(pep,3,A);
     PEPSetTarget(pep,TO_PETSC_COMPLEX(lambda_tgt));
-    PEPSolve(pep);
-    PEPGetConverged(pep,&nConverged);
+    grvy_timer_end("assemble");
     
+    grvy_timer_begin("solve");
+    PEPSolve(pep);
+    grvy_timer_end("solve");
+    
+    grvy_timer_begin("postprocess");
+    PEPGetConverged(pep,&nConverged);
     for (ev=0; ev<nConverged; ev++)
     {
       PEPGetEigenpair( pep, ev, &lambda_solved, NULL, Uout, NULL );
@@ -143,6 +149,7 @@ void qeppsSweeper(void)
     
     if(nConverged==0)
       logError("#! Solver did not converge. Aborting...\n");
+    grvy_timer_end("postprocess");
     
     grvy_timer_end("iteration");
   } // loop parameters
@@ -163,17 +170,39 @@ void qeppsSweeper(void)
   
   if( getOptBooleanLUA("print_timing",false) )
   {
-    logOutput("# \n");
+    logOutput("# ================================================\n");
+    logOutput("# ================================================\n");
     logOutput("# total time: %10.5E secs\n",grvy_timer_elapsed_global());
-    logOutput("# \n");
+    logOutput("# ------------------------------------------------\n");
     logOutput("#      setup: %10.5E secs\n",grvy_timer_elapsedseconds("setup"));
     logOutput("#  iteration: %10.5E secs\n",grvy_timer_elapsedseconds("iteration"));
+    logOutput("#   assemble: %10.5E secs\n",grvy_timer_elapsedseconds("assemble"));
+    logOutput("#      solve: %10.5E secs\n",grvy_timer_elapsedseconds("solve"));
+    logOutput("#   postproc: %10.5E secs\n",grvy_timer_elapsedseconds("postprocess"));
     logOutput("#      clean: %10.5E secs\n",grvy_timer_elapsedseconds("clean"));
-    logOutput("# \n");
-    logOutput("# iteration (   count): %i\n",grvy_timer_stats_count("iteration"));
+    logOutput("# ------------------------------------------------\n");
+    logOutput("# iteration (   count): %i\n",     grvy_timer_stats_count("iteration"));
     logOutput("# iteration (    mean): %E secs\n",grvy_timer_stats_mean("iteration"));
     logOutput("# iteration (variance): %E secs\n",grvy_timer_stats_variance("iteration"));
     logOutput("# iteration (     min): %E secs\n",grvy_timer_stats_min("iteration"));
     logOutput("# iteration (     max): %E secs\n",grvy_timer_stats_max("iteration"));
+    logOutput("# ------------------------------------------------\n");    
+    logOutput("# assemble  (   count): %i\n",     grvy_timer_stats_count("assemble"));
+    logOutput("# assemble  (    mean): %E secs\n",grvy_timer_stats_mean("assemble"));
+    logOutput("# assemble  (variance): %E secs\n",grvy_timer_stats_variance("assemble"));
+    logOutput("# assemble  (     min): %E secs\n",grvy_timer_stats_min("assemble"));
+    logOutput("# assemble  (     max): %E secs\n",grvy_timer_stats_max("assemble"));
+    logOutput("# solve     (   count): %i\n",     grvy_timer_stats_count("solve"));
+    logOutput("# solve     (    mean): %E secs\n",grvy_timer_stats_mean("solve"));
+    logOutput("# solve     (variance): %E secs\n",grvy_timer_stats_variance("solve"));
+    logOutput("# solve     (     min): %E secs\n",grvy_timer_stats_min("solve"));
+    logOutput("# solve     (     max): %E secs\n",grvy_timer_stats_max("solve"));
+    logOutput("# postproc  (   count): %i\n",     grvy_timer_stats_count("postproc"));
+    logOutput("# postproc  (    mean): %E secs\n",grvy_timer_stats_mean("postproc"));
+    logOutput("# postproc  (variance): %E secs\n",grvy_timer_stats_variance("postproc"));
+    logOutput("# postproc  (     min): %E secs\n",grvy_timer_stats_min("postproc"));
+    logOutput("# postproc  (     max): %E secs\n",grvy_timer_stats_max("postproc"));    
+    logOutput("# ================================================\n");
+    logOutput("# ================================================\n");
   }
 }
