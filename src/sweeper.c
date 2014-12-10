@@ -85,7 +85,7 @@ void qeppsSweeper(void)
   PEPGetST(pep,&st);
   STSetTransform(st,1);
   STSetType(st,STSINVERT);
-  PEPSetDimensions(pep,getOptIntLUA("nev",1),PETSC_DEFAULT,PETSC_DEFAULT);
+  PEPSetDimensions(pep,getOptIntLUA("nev",1),2*getOptIntLUA("nev",1),getOptIntLUA("nev",1));
   PEPSetFromOptions(pep);
   
   MPI_Comm_size(PETSC_COMM_WORLD,&p); 
