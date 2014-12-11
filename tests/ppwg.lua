@@ -1,5 +1,9 @@
 j=complex.I -- For convenience 
 
+-- SLURM variables
+JOB_ID = os.getenv("SLURM_JOB_ID")
+if (JOB_ID == nil or JOB_ID == '') then   JOB_ID = "0"   end
+
 -- Parameter values
 parameters = {}
 for param = 0.5E12, 1.5E12, 0.05E12 do   parameters[#parameters+1] = param   end
@@ -7,9 +11,9 @@ for param = 0.5E12, 1.5E12, 0.05E12 do   parameters[#parameters+1] = param   end
 -- Options
 options = {}
 options["lambda_tgt"] = 1.4 --Initial target for eigenvalue
-options["nev"] = 4 --This will override the -pep_nev argument for the number of eigenvalues to solve for
+options["nev"] = 6 --This will override the -pep_nev argument for the number of eigenvalues to solve for
 options["output_dir"] = "./ppwg" --Location to save solution vectors
-options["output_log"] = options["output_dir"].."/output.txt" --File in which qepps (text) output will be saved
+options["output_log"] = options["output_dir"].."/output_"..JOB_ID..".txt" --File in which qepps (text) output will be saved
 options["update_lambda_tgt"] = false --Update target eigenvalue from eigenvalue solved at previous parameter value
 options["update_initspace"] = false --Update solver space from solution vector of previous parameter value
 options["save_solutions"] = false --Save the solution vector for each parameter value

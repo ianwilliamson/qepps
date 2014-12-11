@@ -8,7 +8,7 @@ QEPPS: Quadratic eigenvalue problem parameter sweeper
 
 Background
 ----------
-Comsol offers a GUI in which problems can be modeled, meshed, solved, and visualized. This is the way in which most people use the software, however Comsol also supplies a Matlab API exposing most of the features of the GUI so that sequences of operations may be scripted. We have successfully utilized this API in the past to perform advanced parameter sweeps and to automate complex solver sequences that would be extremely tedious in the GUI. The API also exposes Comsol’s internal linear algebra data structures such as the stiffness matrix, mass matrix, force vector, and solution vector. This means that the underlying linear algebra problem could be solved entirely in Matlab, though no advantage is typically gained by doing this, especially for large problems. 
+Comsol offers a GUI in which problems can be modeled, meshed, solved, and visualized. This is the way in which most people use the software, however Comsol also supplies a Matlab API exposing most of the features of the GUI so that sequences of operations may be scripted. This API has been successfully used in our group to perform advanced parameter sweeps and to automate complex solver sequences that would be extremely tedious in the GUI. The API also exposes Comsol’s internal linear algebra data structures such as the stiffness matrix, mass matrix, force vector, and solution vector. This means that the underlying linear algebra problem could be solved entirely in Matlab, though no advantage is typically gained by doing this, especially for large problems. QEPPS has been developed to solve a subset of the problems that we encounter in computational nanophotonics.
 
 
 Motivation
@@ -19,14 +19,12 @@ Modal studies in electromagnetics are quadratic eigenvalue problems. This means 
 
 where E, D, and K are matrices, U is the eigenvector, and λ is the eigenvalue. Physically, U corresponds to the electric or magnetic field distribution over the discretized domain, with each element corresponding to one of the field components at a location within the 2D or 3D mesh. The eigenvalue, λ, corresponds to either the mode's guided effective index (in waveguides) or to the bloch wave vector in photonic crystals and other periodic geometries.
 
-In the context of electromagnetics/optics, we are often interested in sweeping frequency to obtain broadband dispersion of the structure’s mode(s). This is useful for photonic band gap engineering, understanding signal attenuation characterization, as well as other studies.
-
-It would be highly impractical to generate and upload the full E, D, and K matrices for every frequency value of interest, so these matrices will be componentized. Comsol allows the underlying weak form (i.e. the differential equations that are being solved) to be modified. Typically this feature is used to specify some custom physics that isn’t prepackaged by Comsol, but in this case, it will be used to factor out any expressions involving frequency from the various terms in the governing equations. This includes dispersive materials.
+In the context of electromagnetics/optics, we are often interested in sweeping frequency to obtain broadband dispersion of the structure’s mode(s). This is useful for photonic band gap engineering, understanding signal attenuation, and many other studies.
 
 
 Building
 --------
-QEPPS has been developed using TACC resources. Accordingly, most of its dependencies can be satisfied by loading the prepackaged TACC modules. These include:
+QEPPS has been developed using TACC resources. Accordingly, most of the dependencies can be satisfied by loading the prepackaged TACC modules. The full list of dependencies is:
 
 - PETSc 3.5 (complex)
 - SLEPc 3.5 (complex)
@@ -34,25 +32,38 @@ QEPPS has been developed using TACC resources. Accordingly, most of its dependen
 - libgrvy 0.32
 - LUA 5.2
 
-PETSC, SLEPc, MUMPS, and libgrvy can all be loaded on TACC resources with the following command::
+The appropriate versions of PETSC, SLEPc, MUMPS, and libgrvy can all be added to the user env on at TACC with the following command::
 
    module load petsc/3.5-complex slepc/3.5-complex mumps/4.10.0-complex grvy/0.32.0
 
-LUA 5.2 is included in the source of QEPPS under src/lua and the QEPPS Makefile is already configured to build and link against this LUA.
+LUA 5.2 is included in the source of QEPPS under src/lua and the QEPPS makefile is already configured to build and link against LUA in this location.
 
-Once the dependencies are satisfied, simply cd to the top directory and run::
+After the dependencies have been satisfied, all that is needed to build QEPPS is the command::
 
    make
 
 
+Test problems
+-------------
+The configuration LUA scripts and data files for several test problems are provided under the tests/ subdirectory. These can be run in their current form, without modification on a single TACC stampede dev node. Launcher bash scripts are also included for running each problem. Currently two problems are provided and both are relatively small; the entire parameter sweep for each should complete in less than a minute.
+
+These can be used to validate the results that are obtained after modifying QEPPS or trying different solver options.
+
+
 Usage
 -----
-The polynomial eigenvalue problem (PEP) context from PETSc/SLEPc 3.5 is used to solve the linear algebra problem. There are a variety of approaches for solving quadratic eigenvalue problems, including direct linearization as well as iterative approaches. PETSc also supports a variety of external solvers such as MUMPS. The solver type in PETSc can be selected and configured at run time via the options database.
+It is highly likely that the end user will want to solve their own problems. As demonstrated by the provided test problems, a LUA script file along with command line arguments to the PETSc options database control all runtime configuration of QEPPS. This approach affords the user maximal flexibility in modifying the parameter sweep values and changing the problem configuration.
 
-The LUA scripting language is used to handle the runtime configuration for QEPPS. This allows the user to easily, and programmatically modify the parameter sweep values and can easily expand the classes of problems to be solved. QEPPS assembles the quadratic eigenvalue problem matrices, E, D, and K in the following forms::
+QEPPS assembles the quadratic eigenvalue problem matrices, E, D, and K in the following way::
 
    E = E0*e0(f) + E1*e1(f) + E2*e2(f) + ...
    D = D0*d0(f) + D1*d1(f) + D2*d2(f) + ...
    K = K0*k0(f) + K1*k1(f) + K2*k2(f) + ...
 
-where Ei, Di, and Ki are component matrices and ei(f), di(f), and ki(f) are arbitrary functions of the sweep parameter. After parsing the input script, the LUA interpreter handles all math function evaluations of ei(f), di(f), and ki(f).
+Ei, Di, and Ki are component matrices and ei(f), di(f), and ki(f) are scaling functions of the sweep parameter. The scaling functions are specified in the LUA configuration script and their evaluation is handled at run time by the embedded LUA engine. The locations of the data files are also specified in the LUA script. Additionally, various options for controling QEPPS behavior are also specified in the LUA script. Please see the example problems under the tests/ subdirectory for a more detailed understanding.
+
+For detailed documentation on the PETSc and SLEPc command line arguments and options, please reference the respective user manuals at
+
+- http://www.mcs.anl.gov/petsc/petsc-3.5/docs/manual.pdf
+- http://www.grycap.upv.es/slepc/documentation/slepc.pdf
+
