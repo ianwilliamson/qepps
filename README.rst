@@ -60,10 +60,10 @@ QEPPS assembles the quadratic eigenvalue problem matrices, E, D, and K in the fo
    D = D0*d0(f) + D1*d1(f) + D2*d2(f) + ...
    K = K0*k0(f) + K1*k1(f) + K2*k2(f) + ...
 
-Ei, Di, and Ki are component matrices and ei(f), di(f), and ki(f) are scaling functions of the sweep parameter. The scaling functions are specified in the LUA configuration script and their evaluation is handled at run time by the embedded LUA engine. The locations of the data files are also specified in the LUA script. Additionally, various options for controling QEPPS behavior are also specified in the LUA script. Please see the example problems under the tests/ subdirectory for a more detailed understanding.
+Ei, Di, and Ki are component matrices and ei(f), di(f), and ki(f) are scaling functions of the sweep parameter. The scaling functions are specified in the LUA configuration script and their evaluation is handled at run time by the embedded LUA engine. The locations of the data files are also specified in the LUA script. Additionally, various options for controling QEPPS behavior are also specified in the LUA script. Please see the example problems under the tests/ subdirectory for detailed explanations and examples.
 
-For detailed documentation on the PETSc and SLEPc command line arguments and options, please reference the respective user manuals at
+For detailed documentation on the PETSc and SLEPc command line arguments and options, as well as the MUMPS solver, please reference the respective user manuals at
 
 - http://www.mcs.anl.gov/petsc/petsc-3.5/docs/manual.pdf
 - http://www.grycap.upv.es/slepc/documentation/slepc.pdf
-
+- http://mumps.enseeiht.fr/doc/userguide_4.10.0.pdf
