@@ -53,6 +53,12 @@ The configuration LUA scripts and data files for several test problems are provi
 These can be used to validate the results that are obtained after modifying QEPPS or trying different solver options.
 
 
+Output
+------
+**Eigenvalues** - the eigenvalues are printed to an output file as well as to stdout in a CSV (comma separated value) format along row-by-row for each parameter sweep value. This allows the output file to be easily parsed by the plotting utility provided under tools/. Additional problem information is also printed; these lines are prefixed with a #.
+
+**Solution vectors** - There is a flag in the input configuration that specifies whether QEPPS should save the solution vectors for each parameter sweep value. For more information see the test problem configuration files.
+
 Usage
 -----
 It is highly likely that the end user will want to solve their own problems. As demonstrated by the provided test problems, a LUA script file along with command line arguments to the PETSc options database control all runtime configuration of QEPPS. This approach affords the user maximal flexibility in modifying the parameter sweep values and changing the problem configuration.
